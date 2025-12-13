@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ApplicationServices
 
 @main
 struct DeepAIApp: App {
@@ -27,6 +28,46 @@ struct DeepAIApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var popupWindow: NSWindow?
     weak var translationService: TranslationService?
+
+    func isFrontmostWindowFullscreen() -> Bool {
+        let systemWideElement = AXUIElementCreateSystemWide()
+
+        var focusedApp: AnyObject?
+        let focusedAppResult = AXUIElementCopyAttributeValue(
+            systemWideElement,
+            kAXFocusedApplicationAttribute as CFString,
+            &focusedApp
+        )
+
+        guard focusedAppResult == .success, let app = focusedApp as! AXUIElement? else {
+            return false
+        }
+
+        var focusedWindow: AnyObject?
+        let focusedWindowResult = AXUIElementCopyAttributeValue(
+            app,
+            kAXFocusedWindowAttribute as CFString,
+            &focusedWindow
+        )
+
+        guard focusedWindowResult == .success, let window = focusedWindow as! AXUIElement? else {
+            return false
+        }
+
+        var isFullscreenValue: AnyObject?
+        let fullscreenAttribute = "AXFullScreen" as CFString
+        let fullscreenResult = AXUIElementCopyAttributeValue(
+            window,
+            fullscreenAttribute,
+            &isFullscreenValue
+        )
+
+        if fullscreenResult == .success, let isFullscreen = isFullscreenValue as? Bool {
+            return isFullscreen
+        }
+
+        return false
+    }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Не скрываем приложение из dock, чтобы было видно основное окно
@@ -63,11 +104,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let wasActive = NSApplication.shared.isActive
             if !wasActive {
                 // Активируем приложение мягко, чтобы перейти на текущий desktop
-                NSApp.activate(ignoringOtherApps: true)
-                // Небольшая задержка для перехода на правильный desktop
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    self.createPopupWindow(text: text, translationService: translationService)
-                }
+                self.createPopupWindow(text: text, translationService: translationService)
             } else {
                 self.createPopupWindow(text: text, translationService: translationService)
             }
@@ -91,7 +128,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Создаем окно с возможностью перетаскивания
         let window = DraggableWindow(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 400),
-            styleMask: [NSWindow.StyleMask.borderless, NSWindow.StyleMask.fullSizeContentView],
+            styleMask: [NSWindow.StyleMask.borderless, NSWindow.StyleMask.fullSizeContentView, NSWindow.StyleMask.nonactivatingPanel],
             backing: NSWindow.BackingStoreType.buffered,
             defer: false
         )
@@ -102,14 +139,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.hasShadow = true
         window.level = .floating
         window.isReleasedWhenClosed = false
-        
+
         // Используем правильные настройки для работы на том же desktop
         // fullScreenAuxiliary позволяет окну появляться в полноэкранном режиме
         // НЕ используем canJoinAllSpaces - это делает окно видимым на всех spaces
-        // НЕ используем moveToActiveSpace - это переносит окно
-        // Используем только fullScreenAuxiliary для полноэкранного режима
-        window.collectionBehavior = [.fullScreenAuxiliary]
-        
+        // Используем moveToActiveSpace - это гарантирует показ на текущем space
+        if isFrontmostWindowFullscreen() {
+            window.collectionBehavior = [.fullScreenAuxiliary, .moveToActiveSpace, .transient]
+        } else {
+            window.collectionBehavior = [.moveToActiveSpace, .transient]
+        }
+
         // Делаем окно перемещаемым через заголовок
         window.isMovableByWindowBackground = false
         
@@ -132,7 +172,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Показываем окно БЕЗ активации приложения
         // Используем orderFront вместо makeKeyAndOrderFront, чтобы не активировать приложение
         // Это гарантирует, что окно останется на том же desktop, где находится активное приложение
-        window.orderFront(nil)
+        window.orderFrontRegardless()
         
         self.popupWindow = window
     }

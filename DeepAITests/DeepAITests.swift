@@ -33,6 +33,12 @@ struct DeepAITests {
         return text.range(of: "[А-Яа-яЁё]", options: .regularExpression) != nil
     }
 
+    @Test @MainActor func ax_fullscreen_detection_does_not_crash() {
+        let delegate = AppDelegate()
+        let value = delegate.isFrontmostWindowFullscreen()
+        #expect(value == true || value == false)
+    }
+
     @Test func translation_hello_to_russian_works_for_all_models() async throws {
         let key = try apiKey()
         let service = TranslationService()
