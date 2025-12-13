@@ -2,7 +2,8 @@ import AppKit
 
 class DraggableWindow: NSPanel {
     private var isDragging = false
-    private var dragStartLocation: NSPoint = .zero
+    private var dragStartMouseLocation: NSPoint = .zero
+    private var dragStartWindowOrigin: NSPoint = .zero
 
     override init(
         contentRect: NSRect,
@@ -23,19 +24,21 @@ class DraggableWindow: NSPanel {
         // Проверяем, кликнули ли в области заголовка (верхние 50 пикселей)
         if location.y > (frame.height - 50) {
             isDragging = true
-            dragStartLocation = event.locationInWindow
+            dragStartMouseLocation = NSEvent.mouseLocation
+            dragStartWindowOrigin = frame.origin
         }
         super.mouseDown(with: event)
     }
     
     override func mouseDragged(with event: NSEvent) {
         if isDragging {
-            let currentLocation = NSEvent.mouseLocation
-            let newOrigin = NSPoint(
-                x: currentLocation.x - dragStartLocation.x,
-                y: currentLocation.y - (frame.height - dragStartLocation.y)
-            )
-            setFrameOrigin(newOrigin)
+            let currentMouseLocation = NSEvent.mouseLocation
+            let deltaX = currentMouseLocation.x - dragStartMouseLocation.x
+            let deltaY = currentMouseLocation.y - dragStartMouseLocation.y
+            setFrameOrigin(NSPoint(
+                x: dragStartWindowOrigin.x + deltaX,
+                y: dragStartWindowOrigin.y + deltaY
+            ))
         } else {
             super.mouseDragged(with: event)
         }

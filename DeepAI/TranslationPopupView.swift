@@ -21,9 +21,9 @@ struct TranslationPopupView: View {
     ]
     
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             // Заголовок - делаем его перетаскиваемым
-            HStack {
+            HStack(spacing: 10) {
                 Text("Перевод")
                     .font(.headline)
                 Spacer()
@@ -35,79 +35,73 @@ struct TranslationPopupView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal)
-            .padding(.top)
             
             // Выбор языка
-            Picker("Язык перевода", selection: $selectedLanguage) {
-                ForEach(languages, id: \.self) { language in
-                    Text(language).tag(language)
+            HStack {
+                Text("Язык перевода")
+                    .foregroundColor(.secondary)
+                Spacer()
+                Picker("", selection: $selectedLanguage) {
+                    ForEach(languages, id: \.self) { language in
+                        Text(language).tag(language)
+                    }
                 }
-            }
-            .pickerStyle(.menu)
-            .padding(.horizontal)
-            .onChange(of: selectedLanguage) { _ in
-                translate()
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(width: 220)
+                .onChange(of: selectedLanguage) { _ in
+                    translate()
+                }
             }
             
             // Исходный текст
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Исходный текст:")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(selectedText)
-                    .font(.body)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(6)
-            }
-            .padding(.horizontal)
+            EmptyView()
             
             // Переведенный текст
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Перевод:")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Перевод")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 if translationService.isTranslating {
                     ProgressView()
                         .frame(maxWidth: .infinity)
-                        .padding()
+                        .padding(.vertical, 24)
                 } else {
-                    Text(translatedText.isEmpty ? "Перевод появится здесь..." : translatedText)
-                        .font(.body)
-                        .padding(8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .cornerRadius(6)
-                        .foregroundColor(translatedText.isEmpty ? .secondary : .primary)
+                    ScrollView {
+                        Text(translatedText.isEmpty ? "Перевод появится здесь..." : translatedText)
+                            .font(.body)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(10)
+                            .foregroundColor(translatedText.isEmpty ? .secondary : .primary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(10)
                 }
             }
-            .padding(.horizontal)
             
             // Кнопки
-            HStack(spacing: 12) {
-                Button("Заменить") {
-                    replaceText()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(translatedText.isEmpty || translationService.isTranslating)
-                
+            HStack(spacing: 10) {
+                Spacer()
                 Button("Копировать") {
                     copyToClipboard()
                 }
                 .buttonStyle(.bordered)
                 .disabled(translatedText.isEmpty || translationService.isTranslating)
                 
-                Spacer()
+                Button("Заменить") {
+                    replaceText()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(translatedText.isEmpty || translationService.isTranslating)
             }
-            .padding(.horizontal)
-            .padding(.bottom)
         }
+        .padding(16)
         .frame(width: 400, height: 400)
         .background(Color(NSColor.windowBackgroundColor))
-        .cornerRadius(12)
-        .shadow(radius: 10)
+        .cornerRadius(14)
+        .shadow(radius: 12)
         .onAppear {
             translate()
         }
@@ -143,12 +137,12 @@ struct TranslationPopupView: View {
             let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true) // V key
             keyDown?.flags = .maskCommand
             let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
-        keyDown?.post(tap: .cghidEventTap)
-        keyUp?.post(tap: .cghidEventTap)
+            keyDown?.post(tap: .cghidEventTap)
+            keyUp?.post(tap: .cghidEventTap)
+        }
+        
+        onClose?()
     }
-    
-    onClose?()
-}
     
     private func copyToClipboard() {
         let pasteboard = NSPasteboard.general

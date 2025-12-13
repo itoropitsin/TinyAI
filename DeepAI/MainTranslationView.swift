@@ -18,44 +18,61 @@ struct MainTranslationView: View {
     var body: some View {
         HSplitView {
             // Левая панель - исходный текст
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
                     Text("Исходный текст")
                         .font(.headline)
                     Spacer()
                     Button(action: { clearSourceText() }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.borderless)
                     .help("Очистить")
+                    .disabled(sourceText.isEmpty)
                 }
                 
-                TextEditor(text: $sourceText)
-                    .font(.system(.body, design: .default))
-                    .frame(minWidth: 200)
-                    .onChange(of: sourceText) { _ in
-                        // Отменяем предыдущую задачу перевода
-                        translationTask?.cancel()
-                        
-                        if sourceText.isEmpty {
-                            translatedText = ""
-                        } else {
-                            // Создаем новую задачу с задержкой для debounce
-                            let task = DispatchWorkItem {
-                                translate()
-                            }
-                            translationTask = task
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: task)
-                        }
+                ZStack(alignment: .topLeading) {
+                    if sourceText.isEmpty {
+                        Text("Введите текст для перевода...")
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
                     }
+                    
+                    TextEditor(text: $sourceText)
+                        .font(.system(.body, design: .default))
+                        .frame(minWidth: 220)
+                        .scrollContentBackground(.hidden)
+                        .padding(8)
+                        .onChange(of: sourceText) { _ in
+                            // Отменяем предыдущую задачу перевода
+                            translationTask?.cancel()
+                            
+                            if sourceText.isEmpty {
+                                translatedText = ""
+                            } else {
+                                // Создаем новую задачу с задержкой для debounce
+                                let task = DispatchWorkItem {
+                                    translate()
+                                }
+                                translationTask = task
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: task)
+                            }
+                        }
+                }
+                .background(Color(NSColor.controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                )
             }
-            .padding()
-            .frame(minWidth: 300)
+            .padding(16)
+            .frame(minWidth: 340)
             
             // Правая панель - перевод
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
                     Text("Перевод")
                         .font(.headline)
                     Spacer()
@@ -66,7 +83,7 @@ struct MainTranslationView: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    .frame(width: 150)
+                    .frame(width: 170)
                     .onChange(of: selectedLanguage) { _ in
                         if !sourceText.isEmpty {
                             translate()
@@ -76,34 +93,47 @@ struct MainTranslationView: View {
                     Button(action: { copyTranslation() }) {
                         Image(systemName: "doc.on.doc")
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.borderless)
                     .help("Копировать")
-                    .disabled(translatedText.isEmpty)
+                    .disabled(translatedText.isEmpty || translationService.isTranslating)
                 }
                 
                 if translationService.isTranslating {
-                    VStack {
+                    VStack(spacing: 10) {
                         Spacer()
                         ProgressView()
-                            .scaleEffect(1.5)
+                            .scaleEffect(1.2)
                         Text("Перевожу...")
                             .foregroundColor(.secondary)
-                            .padding(.top)
                         Spacer()
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                    )
                 } else {
                     ScrollView {
-                        Text(translatedText.isEmpty ? "Введите текст для перевода..." : translatedText)
+                        Text(translatedText.isEmpty ? "Перевод появится здесь..." : translatedText)
                             .font(.system(.body, design: .default))
+                            .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(8)
+                            .padding(10)
                             .foregroundColor(translatedText.isEmpty ? .secondary : .primary)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                    )
                 }
             }
-            .padding()
-            .frame(minWidth: 300)
+            .padding(16)
+            .frame(minWidth: 340)
         }
         .toolbar {
             ToolbarItem(placement: .automatic) {
