@@ -6,8 +6,12 @@ struct TranslationPopupView: View {
     let onClose: (() -> Void)?
     @EnvironmentObject var translationService: TranslationService
     @State private var translatedText: String = ""
+    @State private var grammarFixedText: String = ""
     @State private var selectedLanguage: String = "English"
     @State private var showError: Bool = false
+    @State private var isTranslationLoading: Bool = false
+    @State private var isGrammarLoading: Bool = false
+    @State private var currentRequestId: UUID = UUID()
     
     init(selectedText: String, onClose: (() -> Void)? = nil) {
         self.selectedText = selectedText
@@ -24,7 +28,7 @@ struct TranslationPopupView: View {
         VStack(spacing: 12) {
             // Заголовок - делаем его перетаскиваемым
             HStack(spacing: 10) {
-                Text("Перевод")
+                Text("DeepAI")
                     .font(.headline)
                 Spacer()
                 Button(action: {
@@ -35,75 +39,29 @@ struct TranslationPopupView: View {
                 }
                 .buttonStyle(.plain)
             }
-            
-            // Выбор языка
-            HStack {
-                Text("Язык перевода")
-                    .foregroundColor(.secondary)
-                Spacer()
-                Picker("", selection: $selectedLanguage) {
-                    ForEach(languages, id: \.self) { language in
-                        Text(language).tag(language)
-                    }
+
+            if translationService.isTranslationEnabled && translationService.isGrammarEnabled {
+                VSplitView {
+                    translationSection
+                        .frame(minHeight: 0, maxHeight: .infinity)
+                        .layoutPriority(1)
+                    grammarSection
+                        .frame(minHeight: 0, maxHeight: .infinity)
+                        .layoutPriority(1)
                 }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .frame(width: 220)
-                .onChange(of: selectedLanguage) { _ in
-                    translate()
-                }
-            }
-            
-            // Исходный текст
-            EmptyView()
-            
-            // Переведенный текст
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Перевод")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                if translationService.isTranslating {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
-                } else {
-                    ScrollView {
-                        Text(translatedText.isEmpty ? "Перевод появится здесь..." : translatedText)
-                            .font(.body)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(10)
-                            .foregroundColor(translatedText.isEmpty ? .secondary : .primary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(10)
-                }
-            }
-            
-            // Кнопки
-            HStack(spacing: 10) {
-                Spacer()
-                Button("Копировать") {
-                    copyToClipboard()
-                }
-                .buttonStyle(.bordered)
-                .disabled(translatedText.isEmpty || translationService.isTranslating)
-                
-                Button("Заменить") {
-                    replaceText()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(translatedText.isEmpty || translationService.isTranslating)
+            } else if translationService.isTranslationEnabled {
+                translationSection
+            } else if translationService.isGrammarEnabled {
+                grammarSection
             }
         }
         .padding(16)
-        .frame(width: 400, height: 400)
+        .frame(width: 420, height: 520)
         .background(Color(NSColor.windowBackgroundColor))
         .cornerRadius(14)
         .shadow(radius: 12)
         .onAppear {
-            translate()
+            processText()
         }
         .alert("Ошибка", isPresented: $showError) {
             Button("OK", role: .cancel) { }
@@ -111,25 +69,167 @@ struct TranslationPopupView: View {
             Text(translationService.errorMessage ?? "Произошла ошибка при переводе")
         }
     }
-    
-    private func translate() {
-        translationService.translate(text: selectedText, targetLanguage: selectedLanguage) { result in
-            switch result {
-            case .success(let text):
-                translatedText = text
-            case .failure(let error):
-                showError = true
-                print("Translation error: \(error.localizedDescription)")
+
+    private var translationSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Text("Перевод")
+                    .font(.headline)
+                Spacer()
+
+                Picker("", selection: $selectedLanguage) {
+                    ForEach(languages, id: \.self) { language in
+                        Text(language).tag(language)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(width: 160)
+                .onChange(of: selectedLanguage) { _ in
+                    processText(translationOnly: true)
+                }
+
+                Button(action: { copyToClipboard(translatedText) }) {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .help("Копировать")
+                .disabled(translatedText.isEmpty || isTranslationLoading)
+
+                Button("Заменить") {
+                    replaceText(with: translatedText)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(translatedText.isEmpty || isTranslationLoading)
+            }
+
+            if isTranslationLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+            } else {
+                ScrollView {
+                    Text(translatedText.isEmpty ? "Перевод появится здесь..." : translatedText)
+                        .font(.body)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .foregroundColor(translatedText.isEmpty ? .secondary : .primary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(10)
             }
         }
+        .frame(minHeight: 0, maxHeight: .infinity)
+        .layoutPriority(1)
+    }
+
+    private var grammarSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Text("Грамматика")
+                    .font(.headline)
+                Spacer()
+
+                Button(action: { copyToClipboard(grammarFixedText) }) {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .help("Копировать")
+                .disabled(grammarFixedText.isEmpty || isGrammarLoading)
+
+                Button("Заменить") {
+                    replaceText(with: grammarFixedText)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(grammarFixedText.isEmpty || isGrammarLoading)
+            }
+
+            if isGrammarLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+            } else {
+                ScrollView {
+                    Text(grammarFixedText.isEmpty ? "Исправленная версия появится здесь..." : grammarFixedText)
+                        .font(.body)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .foregroundColor(grammarFixedText.isEmpty ? .secondary : .primary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(10)
+            }
+        }
+        .frame(minHeight: 0, maxHeight: .infinity)
+        .layoutPriority(1)
     }
     
-    private func replaceText() {
-        // Копируем переведенный текст в буфер обмена
+    private func processText(translationOnly: Bool = false) {
+        let trimmed = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            translatedText = ""
+            grammarFixedText = ""
+            isTranslationLoading = false
+            isGrammarLoading = false
+            return
+        }
+
+        let requestId = UUID()
+        currentRequestId = requestId
+
+        if translationService.isTranslationEnabled {
+            isTranslationLoading = true
+            translationService.translateText(text: trimmed, targetLanguage: selectedLanguage, modelOverride: nil) { result in
+                guard currentRequestId == requestId else { return }
+                isTranslationLoading = false
+                switch result {
+                case .success(let text):
+                    translatedText = text
+                case .failure(let error):
+                    translatedText = ""
+                    translationService.errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+        } else {
+            translatedText = ""
+            isTranslationLoading = false
+        }
+
+        if translationOnly {
+            return
+        }
+
+        if translationService.isGrammarEnabled {
+            isGrammarLoading = true
+            translationService.grammarFix(text: trimmed, modelOverride: nil) { result in
+                guard currentRequestId == requestId else { return }
+                isGrammarLoading = false
+                switch result {
+                case .success(let text):
+                    grammarFixedText = text
+                case .failure(let error):
+                    grammarFixedText = ""
+                    translationService.errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+        } else {
+            grammarFixedText = ""
+            isGrammarLoading = false
+        }
+    }
+
+    private func replaceText(with text: String) {
+        // Копируем текст в буфер обмена
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(translatedText, forType: .string)
-        
+        pasteboard.setString(text, forType: .string)
+
         // Небольшая задержка перед вставкой
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             // Вставляем текст (Command-V)
@@ -140,14 +240,14 @@ struct TranslationPopupView: View {
             keyDown?.post(tap: .cghidEventTap)
             keyUp?.post(tap: .cghidEventTap)
         }
-        
+
         onClose?()
     }
-    
-    private func copyToClipboard() {
+
+    private func copyToClipboard(_ text: String) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(translatedText, forType: .string)
+        pasteboard.setString(text, forType: .string)
     }
 }
 

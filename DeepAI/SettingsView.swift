@@ -4,7 +4,10 @@ struct SettingsView: View {
     @EnvironmentObject var translationService: TranslationService
     @Environment(\.dismiss) var dismiss
     @State private var apiKey: String = ""
-    @State private var selectedModel: OpenAIModel = .gpt5Mini
+    @State private var isTranslationEnabled: Bool = true
+    @State private var isGrammarEnabled: Bool = true
+    @State private var translationModel: OpenAIModel = .gpt5Mini
+    @State private var grammarModel: OpenAIModel = .gpt5Mini
     
     var body: some View {
         VStack(spacing: 20) {
@@ -30,16 +33,47 @@ struct SettingsView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Модель")
+                        Text("Режимы")
                             .font(.headline)
 
-                        Picker("", selection: $selectedModel) {
-                            ForEach(OpenAIModel.allCases) { model in
-                                Text(model.displayName).tag(model)
+                        Toggle("Перевод", isOn: $isTranslationEnabled)
+                            .disabled(isTranslationEnabled && !isGrammarEnabled)
+
+                        Toggle("Исправление грамматики", isOn: $isGrammarEnabled)
+                            .disabled(isGrammarEnabled && !isTranslationEnabled)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Модели")
+                            .font(.headline)
+
+                        HStack {
+                            Text("Перевод")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Picker("", selection: $translationModel) {
+                                ForEach(OpenAIModel.allCases) { model in
+                                    Text(model.displayName).tag(model)
+                                }
                             }
+                            .pickerStyle(.menu)
+                            .frame(width: 200)
+                            .disabled(!isTranslationEnabled)
                         }
-                        .pickerStyle(.menu)
-                        .frame(width: 200)
+
+                        HStack {
+                            Text("Грамматика")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Picker("", selection: $grammarModel) {
+                                ForEach(OpenAIModel.allCases) { model in
+                                    Text(model.displayName).tag(model)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .frame(width: 200)
+                            .disabled(!isGrammarEnabled)
+                        }
                     }
                 }
                 .padding(.horizontal)
@@ -56,7 +90,10 @@ struct SettingsView: View {
 
                 Button("Сохранить") {
                     translationService.saveAPIKey(apiKey)
-                    translationService.saveSelectedModel(selectedModel)
+                    translationService.saveIsTranslationEnabled(isTranslationEnabled)
+                    translationService.saveIsGrammarEnabled(isGrammarEnabled)
+                    translationService.saveTranslationModel(translationModel)
+                    translationService.saveGrammarModel(grammarModel)
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
@@ -68,7 +105,10 @@ struct SettingsView: View {
         .frame(width: 520, height: 360)
         .onAppear {
             apiKey = translationService.apiKey
-            selectedModel = translationService.selectedModel
+            isTranslationEnabled = translationService.isTranslationEnabled
+            isGrammarEnabled = translationService.isGrammarEnabled
+            translationModel = translationService.translationModel
+            grammarModel = translationService.grammarModel
         }
     }
 }

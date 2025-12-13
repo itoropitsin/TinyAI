@@ -123,11 +123,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Создаем hosting view с правильными размерами
         let hostingView = NSHostingView(rootView: popupView)
-        hostingView.frame = NSRect(x: 0, y: 0, width: 400, height: 400)
+        hostingView.frame = NSRect(x: 0, y: 0, width: 420, height: 520)
         
         // Создаем окно с возможностью перетаскивания
         let window = DraggableWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 400),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 520),
             styleMask: [NSWindow.StyleMask.borderless, NSWindow.StyleMask.fullSizeContentView, NSWindow.StyleMask.nonactivatingPanel],
             backing: NSWindow.BackingStoreType.buffered,
             defer: false
@@ -160,12 +160,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } ?? NSScreen.main ?? NSScreen.screens.first ?? NSScreen.main!
         
         let screenFrame = screen.frame
-        let windowX = mouseLocation.x - 200
-        let windowY = mouseLocation.y - 200
+        let windowX = mouseLocation.x - 210
+        let windowY = mouseLocation.y - 260
         
         // Убеждаемся, что окно не выходит за границы экрана
-        let constrainedX = max(screenFrame.minX, min(windowX, screenFrame.maxX - 400))
-        let constrainedY = max(screenFrame.minY, min(windowY, screenFrame.maxY - 400))
+        let constrainedX = max(screenFrame.minX, min(windowX, screenFrame.maxX - 420))
+        let constrainedY = max(screenFrame.minY, min(windowY, screenFrame.maxY - 520))
         
         window.setFrameOrigin(NSPoint(x: constrainedX, y: constrainedY))
         
