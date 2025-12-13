@@ -214,7 +214,7 @@ Rules:
 - Output only the corrected version of the text.
 """
 
-        customActions[0].title = "Грамматика"
+        customActions[0].title = "Grammar"
         customActions[0].prompt = defaultGrammarPrompt
         customActions[0].model = defaultModel
     }
@@ -257,7 +257,7 @@ Rules:
         }
         let title = first.title.trimmingCharacters(in: .whitespacesAndNewlines)
         let prompt = first.prompt
-        if title == "Перевод" && prompt.contains("You are a professional translator") {
+        if (title == "Translate" || title == "Перевод") && prompt.contains("You are a professional translator") {
             return true
         }
         if prompt.contains("Translate from Auto-detect") && prompt.contains("{{targetLanguage}}") {
@@ -274,7 +274,7 @@ Rules:
         let prompt = customActions[0].prompt
 
         let looksLikeLegacyDefaultTranslation =
-            (title == "Перевод" && prompt.contains("You are a professional translator"))
+            ((title == "Translate" || title == "Перевод") && prompt.contains("You are a professional translator"))
             || (prompt.contains("Translate from Auto-detect") && prompt.contains("{{targetLanguage}}"))
 
         guard looksLikeLegacyDefaultTranslation else {
@@ -288,7 +288,7 @@ Rules:
             let secondTitle = customActions[1].title.trimmingCharacters(in: .whitespacesAndNewlines)
             let secondPrompt = customActions[1].prompt
             let looksLikeLegacyDefaultGrammar =
-                (secondTitle == "Грамматика" && secondPrompt.contains("You are an expert editor"))
+                ((secondTitle == "Grammar" || secondTitle == "Грамматика") && secondPrompt.contains("You are an expert editor"))
                 || (secondPrompt.contains("Fix punctuation, grammar") && secondPrompt.contains("Output only the corrected version"))
 
             if looksLikeLegacyDefaultGrammar {
@@ -721,19 +721,19 @@ enum TranslationError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .apiKeyMissing:
-            return "API ключ не установлен"
+            return "API key is not set"
         case .emptyText:
-            return "Текст для перевода пуст"
+            return "Text to translate is empty"
         case .customPromptMissing:
-            return "Кастомный промпт не задан"
+            return "Custom prompt is not set"
         case .invalidURL:
-            return "Неверный URL"
+            return "Invalid URL"
         case .noData:
-            return "Нет данных от сервера"
+            return "No data received from the server"
         case .invalidResponse:
-            return "Неверный формат ответа"
+            return "Invalid response format"
         case .httpError(let code):
-            return "HTTP ошибка: \(code)"
+            return "HTTP error: \(code)"
         case .apiError(let message):
             return message
         }

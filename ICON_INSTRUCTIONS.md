@@ -1,11 +1,11 @@
-# Инструкция по созданию иконки приложения
+# How to Generate the App Icon
 
-## Вариант 1: Использование готового SVG (рекомендуется)
+## Option 1: Use the provided SVG (recommended)
 
-1. Откройте файл `DeepAI/icon_template.svg` в любом редакторе (например, в браузере или Figma)
-2. Экспортируйте PNG файлы следующих размеров:
+1. Open `DeepAI/icon_template.svg` in any editor (for example, a browser or Figma)
+2. Export PNG files in the following sizes:
    - 16x16, 32x32, 64x64, 128x128, 256x256, 512x512, 1024x1024
-3. Сохраните их в папку `DeepAI/Assets.xcassets/AppIcon.appiconset/` с именами:
+3. Save them into `DeepAI/Assets.xcassets/AppIcon.appiconset/` with these names:
    - `icon_16x16.png` (16x16)
    - `icon_16x16@2x.png` (32x32)
    - `icon_32x32.png` (32x32)
@@ -17,43 +17,43 @@
    - `icon_512x512.png` (512x512)
    - `icon_512x512@2x.png` (1024x1024)
 
-## Вариант 2: Использование ImageMagick (автоматически)
+## Option 2: Use ImageMagick (automatic)
 
-Если у вас установлен ImageMagick:
+If you have ImageMagick installed:
 
 ```bash
 cd DeepAI
 ./create_icon.sh
 ```
 
-Если ImageMagick не установлен:
+If ImageMagick is not installed:
 ```bash
 brew install imagemagick
 cd DeepAI
 ./create_icon.sh
 ```
 
-## Вариант 3: Онлайн-конвертер
+## Option 3: Online converter
 
-1. Откройте `icon_template.svg` в браузере
-2. Используйте онлайн-конвертер SVG в PNG (например, https://cloudconvert.com/svg-to-png)
-3. Создайте PNG файлы нужных размеров
-4. Сохраните их в папку `Assets.xcassets/AppIcon.appiconset/` с правильными именами
+1. Open `icon_template.svg` in a browser
+2. Use an online SVG-to-PNG converter (for example, https://cloudconvert.com/svg-to-png)
+3. Generate PNG files in the required sizes
+4. Save them into `Assets.xcassets/AppIcon.appiconset/` using the correct names
 
-## Вариант 4: Использование Xcode
+## Option 4: Use Xcode
 
-1. Откройте проект в Xcode
-2. Выберите `Assets.xcassets` → `AppIcon`
-3. Перетащите иконки нужных размеров в соответствующие слоты
-4. Xcode автоматически определит размеры
+1. Open the project in Xcode
+2. Select `Assets.xcassets` → `AppIcon`
+3. Drag and drop icons into the corresponding slots
+4. Xcode will detect sizes automatically
 
-## Дизайн иконки
+## Icon design
 
-Текущая иконка включает:
-- Синий градиентный фон (символизирует технологии)
-- Символ перевода (A → B)
-- Символ AI (три соединенных узла)
-- Белый цвет для контраста
+The current icon includes:
+- A blue gradient background (symbolizing technology)
+- A translation symbol (A → B)
+- An AI symbol (three connected nodes)
+- White color for contrast
 
-Вы можете изменить дизайн, отредактировав `icon_template.svg` в любом векторном редакторе.
+You can change the design by editing `icon_template.svg` in any vector editor.
 

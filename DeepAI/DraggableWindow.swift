@@ -21,7 +21,7 @@ class DraggableWindow: NSPanel {
     
     override func mouseDown(with event: NSEvent) {
         let location = event.locationInWindow
-        // Проверяем, кликнули ли в области заголовка (верхние 50 пикселей)
+        // Check whether the click is within the header area (top 50px)
         if location.y > (frame.height - 50) {
             isDragging = true
             dragStartMouseLocation = NSEvent.mouseLocation

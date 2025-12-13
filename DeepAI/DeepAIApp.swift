@@ -26,6 +26,81 @@ struct DeepAIApp: App {
     }
 }
 
+private struct HoverHighlightModifier: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering: Bool = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color(NSColor.unemphasizedSelectedContentBackgroundColor))
+                    .opacity(isEnabled && isHovering ? 0.18 : 0)
+            )
+            .scaleEffect(isEnabled && isHovering ? 1.01 : 1)
+            .animation(.easeOut(duration: 0.12), value: isHovering)
+            .onHover { hovering in
+                isHovering = hovering
+            }
+    }
+}
+
+private struct HoverRowHighlightModifier: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering: Bool = false
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.vertical, 3)
+            .padding(.horizontal, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color(NSColor.unemphasizedSelectedContentBackgroundColor))
+                    .opacity(isEnabled && isHovering ? 0.12 : 0)
+            )
+            .animation(.easeOut(duration: 0.12), value: isHovering)
+            .onHover { hovering in
+                isHovering = hovering
+            }
+    }
+}
+
+private struct HoverToolbarIconModifier: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering: Bool = false
+
+    func body(content: Content) -> some View {
+        content
+            .frame(width: 28, height: 28)
+            .contentShape(Circle())
+            .background(
+                Circle()
+                    .fill(Color(NSColor.unemphasizedSelectedContentBackgroundColor))
+                    .opacity(isEnabled && isHovering ? 0.14 : 0)
+            )
+            .animation(.easeOut(duration: 0.12), value: isHovering)
+            .onHover { hovering in
+                isHovering = hovering
+            }
+    }
+}
+
+extension View {
+    func hoverHighlight() -> some View {
+        modifier(HoverHighlightModifier())
+    }
+
+    func hoverRowHighlight() -> some View {
+        modifier(HoverRowHighlightModifier())
+    }
+
+    func hoverToolbarIcon() -> some View {
+        modifier(HoverToolbarIconModifier())
+    }
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate {
     var popupWindow: NSWindow?
     weak var translationService: TranslationService?
@@ -72,10 +147,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Не скрываем приложение из dock, чтобы было видно основное окно
+        // Keep the app in the Dock so the main window is visible
         // NSApp.setActivationPolicy(.accessory)
         
-        // Запрашиваем разрешение на доступность
+        // Request Accessibility permission
         requestAccessibilityPermission()
     }
     
@@ -84,28 +159,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let accessEnabled = AXIsProcessTrustedWithOptions(options as CFDictionary)
         
         if !accessEnabled {
-            print("Требуется разрешение на доступность для работы глобальных горячих клавиш")
+            print("Accessibility permission is required for global hotkeys to work")
         }
     }
     
     
     func showTranslationPopup(with payload: RichTextPayload) {
-        // Убеждаемся, что все выполняется на главном потоке
+        // Ensure everything runs on the main thread
         DispatchQueue.main.async { [weak self] in
             guard let self = self, let translationService = self.translationService else { return }
             
-            // Закрываем предыдущее окно, если оно открыто
+            // Close the previous window if it's open
             if let existingWindow = self.popupWindow {
                 existingWindow.close()
                 self.popupWindow = nil
             }
             
-            // ВАЖНО: Временно активируем приложение на текущем desktop
-            // Это гарантирует, что новое окно будет создано на том же desktop
-            // где находится активное приложение
+            // IMPORTANT: Create the popup on the current desktop.
+            // This ensures the new window is created on the same desktop
+            // where the active app resides.
             let wasActive = NSApplication.shared.isActive
             if !wasActive {
-                // Активируем приложение мягко, чтобы перейти на текущий desktop
+                // Create the popup without switching desktops
                 self.createPopupWindow(payload: payload, translationService: translationService)
             } else {
                 self.createPopupWindow(payload: payload, translationService: translationService)
@@ -114,7 +189,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func createPopupWindow(payload: RichTextPayload, translationService: TranslationService) {
-        // Создаем view на главном потоке
+        // Create the view on the main thread
         let popupView = TranslationPopupView(selectedText: payload.plain, selectedPayload: payload, onClose: { [weak self] in
             DispatchQueue.main.async {
                 self?.popupWindow?.close()
@@ -124,11 +199,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         .environmentObject(translationService)
         .environmentObject(keyboardMonitor ?? KeyboardMonitor())
         
-        // Создаем hosting view с правильными размерами
+        // Create a hosting view with correct sizing
         let hostingView = NSHostingView(rootView: popupView)
         hostingView.frame = NSRect(x: 0, y: 0, width: 420, height: 520)
         
-        // Создаем окно с возможностью перетаскивания
+        // Create a draggable window
         let window = DraggableWindow(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 520),
             styleMask: [NSWindow.StyleMask.borderless, NSWindow.StyleMask.fullSizeContentView, NSWindow.StyleMask.nonactivatingPanel],
@@ -143,20 +218,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.level = .floating
         window.isReleasedWhenClosed = false
 
-        // Используем правильные настройки для работы на том же desktop
-        // fullScreenAuxiliary позволяет окну появляться в полноэкранном режиме
-        // НЕ используем canJoinAllSpaces - это делает окно видимым на всех spaces
-        // Используем moveToActiveSpace - это гарантирует показ на текущем space
+        // Use the correct settings to keep the window on the same desktop.
+        // fullScreenAuxiliary allows the window to appear in fullscreen.
+        // Do NOT use canJoinAllSpaces (it makes the window visible on all Spaces).
+        // Use moveToActiveSpace to ensure the window shows on the current Space.
         if isFrontmostWindowFullscreen() {
             window.collectionBehavior = [.fullScreenAuxiliary, .moveToActiveSpace, .transient]
         } else {
             window.collectionBehavior = [.moveToActiveSpace, .transient]
         }
 
-        // Делаем окно перемещаемым через заголовок
+        // The window is draggable via the custom header area
         window.isMovableByWindowBackground = false
         
-        // Получаем активный экран для правильного позиционирования
+        // Find the active screen for correct positioning
         let mouseLocation = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { screen in
             screen.frame.contains(mouseLocation)
@@ -166,15 +241,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let windowX = mouseLocation.x - 210
         let windowY = mouseLocation.y - 260
         
-        // Убеждаемся, что окно не выходит за границы экрана
+        // Ensure the window stays within screen bounds
         let constrainedX = max(screenFrame.minX, min(windowX, screenFrame.maxX - 420))
         let constrainedY = max(screenFrame.minY, min(windowY, screenFrame.maxY - 520))
         
         window.setFrameOrigin(NSPoint(x: constrainedX, y: constrainedY))
         
-        // Показываем окно БЕЗ активации приложения
-        // Используем orderFront вместо makeKeyAndOrderFront, чтобы не активировать приложение
-        // Это гарантирует, что окно останется на том же desktop, где находится активное приложение
+        // Show the window WITHOUT activating the app.
+        // Use orderFrontRegardless instead of makeKeyAndOrderFront to avoid app activation.
+        // This keeps the window on the same desktop as the active app.
         window.orderFrontRegardless()
         
         self.popupWindow = window

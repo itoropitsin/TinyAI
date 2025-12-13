@@ -8,10 +8,14 @@ struct SettingsView: View {
     @State private var starredPrimarySelectionKey: String = TranslationService.builtInTranslateSelectionKey
     @State private var starredSecondaryActionId: UUID?
     @State private var builtInTranslateModel: OpenAIModel = .gpt5Mini
+
+    private let settingsLabelColumnWidth: CGFloat = 130
+    private let settingsControlColumnWidth: CGFloat = 240
+    private let customActionModelPickerWidth: CGFloat = 150
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("Настройки")
+            Text("Settings")
                 .font(.title2)
                 .padding(.top)
 
@@ -21,25 +25,25 @@ struct SettingsView: View {
                         Text("OpenAI API Key")
                             .font(.headline)
 
-                        SecureField("Введите ваш API ключ", text: $apiKey)
+                        SecureField("Enter your API key", text: $apiKey)
                             .textFieldStyle(.roundedBorder)
 
-                        Text("Ваш API ключ хранится локально и используется только для переводов.")
+                        Text("Your API key is stored locally and used only for translations.")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        Link("Получить API ключ", destination: URL(string: "https://platform.openai.com/api-keys")!)
+                        Link("Get an API key", destination: URL(string: "https://platform.openai.com/api-keys")!)
                             .font(.caption)
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Основные действия")
+                        Text("Primary actions")
                             .font(.headline)
 
-                        HStack {
+                        HStack(alignment: .center, spacing: 12) {
                             Text("Starred 1")
                                 .foregroundColor(.secondary)
-                            Spacer()
+                                .frame(width: settingsLabelColumnWidth, alignment: .leading)
                             Picker("", selection: Binding(
                                 get: { starredPrimarySelectionKey },
                                 set: { starredPrimarySelectionKey = $0 }
@@ -53,28 +57,32 @@ struct SettingsView: View {
                                 }
                             }
                             .pickerStyle(.menu)
-                            .frame(width: 240)
+                            .frame(width: settingsControlColumnWidth)
                         }
+                        .padding(.vertical, 2)
+                        .hoverRowHighlight()
 
                         if starredPrimarySelectionKey == TranslationService.builtInTranslateSelectionKey {
-                            HStack {
+                            HStack(alignment: .center, spacing: 12) {
                                 Text("Translate model")
                                     .foregroundColor(.secondary)
-                                Spacer()
+                                    .frame(width: settingsLabelColumnWidth, alignment: .leading)
                                 Picker("", selection: $builtInTranslateModel) {
                                     ForEach(OpenAIModel.allCases) { model in
                                         Text(model.displayName).tag(model)
                                     }
                                 }
                                 .pickerStyle(.menu)
-                                .frame(width: 240)
+                                .frame(width: settingsControlColumnWidth)
                             }
+                            .padding(.vertical, 2)
+                            .hoverRowHighlight()
                         }
 
-                        HStack {
+                        HStack(alignment: .center, spacing: 12) {
                             Text("Starred 2")
                                 .foregroundColor(.secondary)
-                            Spacer()
+                                .frame(width: settingsLabelColumnWidth, alignment: .leading)
                             Picker("", selection: Binding(
                                 get: { starredSecondaryActionId ?? customActions.first?.id },
                                 set: { starredSecondaryActionId = $0 }
@@ -87,30 +95,41 @@ struct SettingsView: View {
                                 }
                             }
                             .pickerStyle(.menu)
-                            .frame(width: 240)
+                            .frame(width: settingsControlColumnWidth)
                         }
+                        .padding(.vertical, 2)
+                        .hoverRowHighlight()
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Кастомные действия")
+                        Text("Custom actions")
                             .font(.headline)
 
                         VStack(alignment: .leading, spacing: 14) {
                             ForEach(customActions.indices, id: \.self) { index in
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text("Кнопка \(index + 1)")
+                                    Text("Button \(index + 1)")
                                         .foregroundColor(.secondary)
 
-                                    TextField("Title", text: $customActions[index].title)
+                                    HStack(alignment: .center, spacing: 12) {
+                                        TextField(
+                                            "Title",
+                                            text: Binding(
+                                                get: { customActions[index].title },
+                                                set: { customActions[index].title = String($0.prefix(25)) }
+                                            )
+                                        )
                                         .textFieldStyle(.roundedBorder)
+                                        .frame(minWidth: 220)
 
-                                    Picker("", selection: $customActions[index].model) {
-                                        ForEach(OpenAIModel.allCases) { model in
-                                            Text(model.displayName).tag(model)
+                                        Picker("", selection: $customActions[index].model) {
+                                            ForEach(OpenAIModel.allCases) { model in
+                                                Text(model.displayName).tag(model)
+                                            }
                                         }
+                                        .pickerStyle(.menu)
+                                        .frame(width: customActionModelPickerWidth)
                                     }
-                                    .pickerStyle(.menu)
-                                    .frame(width: 240)
 
                                     TextEditor(text: $customActions[index].prompt)
                                         .frame(height: 90)
@@ -119,6 +138,7 @@ struct SettingsView: View {
                                                 .stroke(Color(NSColor.separatorColor), lineWidth: 1)
                                         )
                                 }
+                                .hoverRowHighlight()
                             }
                         }
                     }
@@ -128,21 +148,29 @@ struct SettingsView: View {
             }
 
             HStack {
-                Button("Отмена") {
+                Button("Cancel") {
                     dismiss()
                 }
+                .hoverHighlight()
                 .keyboardShortcut(.cancelAction)
 
                 Spacer()
 
-                Button("Сохранить") {
+                Button("Save") {
                     translationService.saveAPIKey(apiKey)
-                    translationService.saveCustomActions(customActions)
+                    let normalizedActions = customActions.map { action in
+                        var copy = action
+                        copy.title = String(copy.title.prefix(25))
+                        return copy
+                    }
+                    customActions = normalizedActions
+                    translationService.saveCustomActions(normalizedActions)
                     translationService.saveStarredPrimarySelectionKey(starredPrimarySelectionKey)
                     translationService.saveBuiltInTranslateModel(builtInTranslateModel)
                     translationService.saveStarredSecondaryActionId(starredSecondaryActionId)
                     dismiss()
                 }
+                .hoverHighlight()
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
             }
@@ -152,7 +180,11 @@ struct SettingsView: View {
         .frame(width: 520, height: 720)
         .onAppear {
             apiKey = translationService.apiKey
-            customActions = translationService.customActions
+            customActions = translationService.customActions.map { action in
+                var copy = action
+                copy.title = String(copy.title.prefix(25))
+                return copy
+            }
             starredPrimarySelectionKey = translationService.starredPrimarySelectionKey
             starredSecondaryActionId = translationService.starredSecondaryActionId
             builtInTranslateModel = translationService.builtInTranslateModel

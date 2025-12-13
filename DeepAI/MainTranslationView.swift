@@ -24,23 +24,24 @@ struct MainTranslationView: View {
     
     var body: some View {
         HSplitView {
-            // Левая панель - исходный текст
+            // Left panel - source text
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
-                    Text("Исходный текст")
+                    Text("Source text")
                         .font(.headline)
                     Spacer()
                     Button(action: { clearSourceText() }) {
                         Image(systemName: "xmark.circle.fill")
                     }
                     .buttonStyle(.borderless)
-                    .help("Очистить")
+                    .hoverHighlight()
+                    .help("Clear")
                     .disabled(sourceText.isEmpty)
                 }
                 
                 ZStack(alignment: .topLeading) {
                     if sourceText.isEmpty {
-                        Text("Введите текст для перевода...")
+                        Text("Enter text to translate...")
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
@@ -60,7 +61,7 @@ struct MainTranslationView: View {
                                 isPrimaryLoading = false
                                 isSecondaryLoading = false
                             } else {
-                                // Создаем новую задачу с задержкой для debounce
+                                // Create a new task with delay for debounce
                                 let task = DispatchWorkItem {
                                     processText()
                                 }
@@ -79,7 +80,7 @@ struct MainTranslationView: View {
             .padding(16)
             .frame(minWidth: 340)
             
-            // Правая панель - результаты
+            // Right panel - results
             VStack(alignment: .leading, spacing: 12) {
                 VSplitView {
                     primarySection
@@ -97,8 +98,10 @@ struct MainTranslationView: View {
             ToolbarItem(placement: .automatic) {
                 Button(action: { showSettings = true }) {
                     Image(systemName: "gearshape")
+                        .hoverToolbarIcon()
                 }
-                .help("Настройки")
+                .buttonStyle(.plain)
+                .help("Settings")
             }
         }
         .onAppear {
@@ -134,7 +137,7 @@ struct MainTranslationView: View {
             SettingsView()
                 .environmentObject(translationService)
         }
-        .alert("Ошибка", isPresented: Binding(
+        .alert("Error", isPresented: Binding(
             get: { translationService.errorMessage != nil },
             set: { isPresented in
                 if !isPresented {
@@ -145,6 +148,7 @@ struct MainTranslationView: View {
             Button("OK", role: .cancel) {
                 translationService.errorMessage = nil
             }
+            .hoverHighlight()
         } message: {
             Text(translationService.errorMessage ?? "")
         }
@@ -174,8 +178,8 @@ struct MainTranslationView: View {
     }
 
     private var primarySection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
                 Text(primaryTitle)
                     .font(.headline)
                 Spacer()
@@ -194,21 +198,21 @@ struct MainTranslationView: View {
                     Image(systemName: "doc.on.doc")
                 }
                 .buttonStyle(.borderless)
-                .help("Копировать")
-                .disabled(primaryOutputText.isEmpty || isPrimaryLoading)
-
-                Button("Заменить") {
-                    replaceSourceText(with: primaryOutputText)
-                }
+                .hoverHighlight()
+                .help("Copy")
                 .disabled(primaryOutputText.isEmpty || isPrimaryLoading)
             }
+
+            .padding(.vertical, 2)
 
             if isPrimaryLoading {
                 VStack(spacing: 10) {
                     Spacer()
                     ProgressView()
-                        .scaleEffect(1.2)
-                    Text("Обрабатываю...")
+                        .progressViewStyle(.circular)
+                        .controlSize(.large)
+                        .frame(width: 36, height: 36)
+                    Text("Processing...")
                         .foregroundColor(.secondary)
                     Spacer()
                 }
@@ -221,7 +225,7 @@ struct MainTranslationView: View {
                 )
             } else {
                 ScrollView {
-                    Text(primaryOutputText.isEmpty ? "Результат появится здесь..." : primaryOutputText)
+                    Text(primaryOutputText.isEmpty ? "Result will appear here..." : primaryOutputText)
                         .font(.system(.body, design: .default))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -242,8 +246,8 @@ struct MainTranslationView: View {
     }
 
     private var secondarySection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
                 Text(secondaryTitle)
                     .font(.headline)
                 Spacer()
@@ -252,14 +256,13 @@ struct MainTranslationView: View {
                     Image(systemName: "doc.on.doc")
                 }
                 .buttonStyle(.borderless)
-                .help("Копировать")
-                .disabled(secondaryOutputText.isEmpty || isSecondaryLoading)
-
-                Button("Заменить") {
-                    replaceSourceText(with: secondaryOutputText)
-                }
+                .hoverHighlight()
+                .help("Copy")
                 .disabled(secondaryOutputText.isEmpty || isSecondaryLoading)
             }
+
+            .padding(.top, 6)
+            .padding(.bottom, 2)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -272,6 +275,7 @@ struct MainTranslationView: View {
                             runSecondaryAction(at: index)
                         }
                         .buttonStyle(.bordered)
+                        .hoverHighlight()
                         .disabled(
                             sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                             || isSecondaryLoading
@@ -286,8 +290,10 @@ struct MainTranslationView: View {
                 VStack(spacing: 10) {
                     Spacer()
                     ProgressView()
-                        .scaleEffect(1.2)
-                    Text("Обрабатываю...")
+                        .progressViewStyle(.circular)
+                        .controlSize(.large)
+                        .frame(width: 36, height: 36)
+                    Text("Processing...")
                         .foregroundColor(.secondary)
                     Spacer()
                 }
@@ -300,7 +306,7 @@ struct MainTranslationView: View {
                 )
             } else {
                 ScrollView {
-                    Text(secondaryOutputText.isEmpty ? "Результат появится здесь..." : secondaryOutputText)
+                    Text(secondaryOutputText.isEmpty ? "Result will appear here..." : secondaryOutputText)
                         .font(.system(.body, design: .default))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -405,7 +411,7 @@ struct MainTranslationView: View {
         let prompt = action.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let resolvedPrompt = prompt.replacingOccurrences(of: "{{targetLanguage}}", with: selectedLanguage)
-        let emptyPromptMessage = "Промпт и модель для этого действия задаются в настройках."
+        let emptyPromptMessage = "Configure the prompt and model for this action in Settings."
 
         switch target {
         case .primary:

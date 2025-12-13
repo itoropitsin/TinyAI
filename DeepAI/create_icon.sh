@@ -1,18 +1,18 @@
 #!/bin/bash
 
-# Скрипт для создания иконки приложения из SVG
-# Требует: ImageMagick или sips (встроен в macOS)
+# Script to generate app icons from an SVG
+# Requires: ImageMagick or sips (built into macOS)
 
 SVG_FILE="icon_template.svg"
 ICONSET_DIR="Assets.xcassets/AppIcon.appiconset"
 
-echo "Создание иконки приложения..."
+echo "Generating app icons..."
 
-# Проверяем наличие ImageMagick
+# Check for ImageMagick
 if command -v convert &> /dev/null; then
-    echo "Используем ImageMagick..."
+    echo "Using ImageMagick..."
     
-    # Создаем все необходимые размеры для macOS
+    # Generate all required macOS sizes
     convert -background none "$SVG_FILE" -resize 16x16 "${ICONSET_DIR}/icon_16x16.png"
     convert -background none "$SVG_FILE" -resize 32x32 "${ICONSET_DIR}/icon_16x16@2x.png"
     convert -background none "$SVG_FILE" -resize 32x32 "${ICONSET_DIR}/icon_32x32.png"
@@ -24,17 +24,17 @@ if command -v convert &> /dev/null; then
     convert -background none "$SVG_FILE" -resize 512x512 "${ICONSET_DIR}/icon_512x512.png"
     convert -background none "$SVG_FILE" -resize 1024x1024 "${ICONSET_DIR}/icon_512x512@2x.png"
     
-    echo "Иконки созданы успешно!"
+    echo "Icons generated successfully!"
     
 elif command -v sips &> /dev/null; then
-    echo "Используем sips (встроенный инструмент macOS)..."
-    echo "Сначала нужно конвертировать SVG в PNG..."
-    echo "Установите ImageMagick: brew install imagemagick"
-    echo "Или используйте онлайн-конвертер для создания PNG из SVG"
+    echo "Using sips (built-in macOS tool)..."
+    echo "You need to convert SVG to PNG first..."
+    echo "Install ImageMagick: brew install imagemagick"
+    echo "Or use an online converter to generate PNGs from the SVG"
     
 else
-    echo "Ошибка: не найден ImageMagick или sips"
-    echo "Установите ImageMagick: brew install imagemagick"
+    echo "Error: ImageMagick or sips not found"
+    echo "Install ImageMagick: brew install imagemagick"
     exit 1
 fi
 

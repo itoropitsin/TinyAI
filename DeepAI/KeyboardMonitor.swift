@@ -12,7 +12,7 @@ class KeyboardMonitor: ObservableObject {
     private let doublePressInterval: TimeInterval = 0.5
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private var isProcessing: Bool = false // Защита от множественных срабатываний
+    private var isProcessing: Bool = false // Protection against multiple triggers
     private var isProcessingCustomAction: Bool = false
     private var isSimulatingCopy: Bool = false
     private var setupRetryCount: Int = 0
@@ -113,22 +113,22 @@ class KeyboardMonitor: ObservableObject {
                 }
             }
             
-            // Проверяем Command-C
+            // Detect Command-C
             if keyCode == 8 && flags.contains(.maskCommand) { // 8 = C key
                 let now = Date()
                 
                 if let lastPress = lastCommandCPressTime,
                    now.timeIntervalSince(lastPress) < doublePressInterval {
-                    // Двойное нажатие обнаружено
-                    // Проверяем, не обрабатывается ли уже запрос
+                    // Double press detected
+                    // Check if a request is already being processed
                     if !isProcessing {
                         isProcessing = true
-                        // Вызываем на главном потоке
+                        // Execute on the main thread
                         DispatchQueue.main.async { [weak self] in
                             self?.handleDoubleCommandC()
                         }
                     }
-                    // Поглощаем событие, чтобы не копировалось
+                    // Swallow the event so it doesn't copy
                     return nil
                 }
                 
@@ -140,7 +140,7 @@ class KeyboardMonitor: ObservableObject {
     }
     
     private func handleDoubleCommandC() {
-        // Убеждаемся, что мы на главном потоке
+        // Ensure we are on the main thread
         guard Thread.isMainThread else {
             DispatchQueue.main.async { [weak self] in
                 self?.handleDoubleCommandC()
@@ -150,16 +150,16 @@ class KeyboardMonitor: ObservableObject {
         
         if let payload = getSelectedRichText(), !payload.plain.isEmpty {
             onDoubleCommandC?(payload)
-            // Сбрасываем флаг после небольшой задержки
+            // Reset the flag after a short delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.isProcessing = false
             }
         } else {
-            // Fallback: используем буфер обмена
+            // Fallback: use the pasteboard
             let pasteboard = NSPasteboard.general
             let snapshot = snapshotPasteboard(pasteboard)
 
-            // Копируем выделенный текст
+            // Copy selected text
             isSimulatingCopy = true
             let source = CGEventSource(stateID: .hidSystemState)
             let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true) // C key
@@ -168,7 +168,7 @@ class KeyboardMonitor: ObservableObject {
             keyDown?.post(tap: .cghidEventTap)
             keyUp?.post(tap: .cghidEventTap)
 
-            // Небольшая задержка для копирования
+            // Small delay to allow the copy to complete
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
                 guard let self = self else { return }
                 let payload = RichTextPasteboard.read(from: pasteboard)
@@ -177,10 +177,10 @@ class KeyboardMonitor: ObservableObject {
                         self.onDoubleCommandC?(payload)
                     }
                 }
-                // Восстанавливаем предыдущее содержимое буфера обмена
+                // Restore previous pasteboard contents
                 restorePasteboard(pasteboard, snapshot: snapshot)
                 self.isSimulatingCopy = false
-                // Сбрасываем флаг после обработки
+                // Reset the flag after processing
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.85) {
                     self.isProcessing = false
                 }

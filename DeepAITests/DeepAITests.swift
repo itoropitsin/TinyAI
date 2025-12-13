@@ -30,7 +30,7 @@ struct DeepAITests {
     }
 
     private func containsCyrillic(_ text: String) -> Bool {
-        return text.range(of: "[А-Яа-яЁё]", options: .regularExpression) != nil
+        return text.range(of: "\\p{Cyrillic}", options: .regularExpression) != nil
     }
 
     @Test @MainActor func ax_fullscreen_detection_does_not_crash() {

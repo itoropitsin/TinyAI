@@ -35,7 +35,7 @@ struct TranslationPopupView: View {
     
     var body: some View {
         VStack(spacing: 12) {
-            // Заголовок - делаем его перетаскиваемым
+            // Header - make it draggable
             HStack(spacing: 10) {
                 Text("DeepAI")
                     .font(.headline)
@@ -47,6 +47,7 @@ struct TranslationPopupView: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .hoverHighlight()
             }
 
             VSplitView {
@@ -93,10 +94,10 @@ struct TranslationPopupView: View {
             refreshTitles()
             processText()
         }
-        .alert("Ошибка", isPresented: $showError) {
+        .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text(translationService.errorMessage ?? "Произошла ошибка при переводе")
+            Text(translationService.errorMessage ?? "An error occurred during translation")
         }
     }
 
@@ -147,13 +148,15 @@ struct TranslationPopupView: View {
                     Image(systemName: "doc.on.doc")
                 }
                 .buttonStyle(.borderless)
-                .help("Копировать")
+                .hoverHighlight()
+                .help("Copy")
                 .disabled(primaryOutputText.isEmpty || isPrimaryLoading)
 
-                Button("Заменить") {
+                Button("Replace") {
                     replaceText(with: primaryOutputPayload ?? RichTextPayload(plain: primaryOutputText, html: nil, rtf: nil))
                 }
                 .buttonStyle(.borderedProminent)
+                .hoverHighlight()
                 .disabled(primaryOutputText.isEmpty || isPrimaryLoading)
             }
 
@@ -163,7 +166,7 @@ struct TranslationPopupView: View {
                     .padding(.vertical, 24)
             } else {
                 ScrollView {
-                    Text(primaryOutputText.isEmpty ? "Результат появится здесь..." : primaryOutputText)
+                    Text(primaryOutputText.isEmpty ? "Result will appear here..." : primaryOutputText)
                         .font(.body)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -192,13 +195,15 @@ struct TranslationPopupView: View {
                     Image(systemName: "doc.on.doc")
                 }
                 .buttonStyle(.borderless)
-                .help("Копировать")
+                .hoverHighlight()
+                .help("Copy")
                 .disabled(secondaryOutputText.isEmpty || isSecondaryLoading)
 
-                Button("Заменить") {
+                Button("Replace") {
                     replaceText(with: secondaryOutputPayload ?? RichTextPayload(plain: secondaryOutputText, html: nil, rtf: nil))
                 }
                 .buttonStyle(.borderedProminent)
+                .hoverHighlight()
                 .disabled(secondaryOutputText.isEmpty || isSecondaryLoading)
             }
 
@@ -213,6 +218,7 @@ struct TranslationPopupView: View {
                             runSecondaryAction(at: index)
                         }
                         .buttonStyle(.bordered)
+                        .hoverHighlight()
                         .disabled(
                             selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                             || isSecondaryLoading
@@ -229,7 +235,7 @@ struct TranslationPopupView: View {
                     .padding(.vertical, 24)
             } else {
                 ScrollView {
-                    Text(secondaryOutputText.isEmpty ? "Результат появится здесь..." : secondaryOutputText)
+                    Text(secondaryOutputText.isEmpty ? "Result will appear here..." : secondaryOutputText)
                         .font(.body)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -293,7 +299,7 @@ struct TranslationPopupView: View {
         let title = action.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Action" : action.title
         let prompt = action.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedPrompt = prompt.replacingOccurrences(of: "{{targetLanguage}}", with: selectedLanguage)
-        let emptyPromptMessage = "Промпт и модель для этого действия задаются в настройках."
+        let emptyPromptMessage = "Configure the prompt and model for this action in Settings."
 
         switch target {
         case .primary:
@@ -393,9 +399,9 @@ struct TranslationPopupView: View {
         let pasteboard = NSPasteboard.general
         RichTextPasteboard.write(payload, to: pasteboard)
 
-        // Небольшая задержка перед вставкой
+        // Small delay before paste
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            // Вставляем текст (Command-V)
+            // Paste text (Command-V)
             let source = CGEventSource(stateID: .hidSystemState)
             let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true) // V key
             keyDown?.flags = .maskCommand
