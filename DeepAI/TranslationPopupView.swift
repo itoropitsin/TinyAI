@@ -18,6 +18,8 @@ struct TranslationPopupView: View {
     @State private var isSecondaryLoading: Bool = false
     @State private var primaryRequestId: UUID = UUID()
     @State private var secondaryRequestId: UUID = UUID()
+    @State private var primaryNetworkTask: URLSessionDataTask?
+    @State private var secondaryNetworkTask: URLSessionDataTask?
     @State private var primaryTitle: String = "Starred 1"
     @State private var secondaryTitle: String = "Starred 2"
     
@@ -71,6 +73,8 @@ struct TranslationPopupView: View {
         }
         .onDisappear {
             keyboardMonitor.isCustomActionHotkeysEnabled = false
+            primaryNetworkTask?.cancel()
+            secondaryNetworkTask?.cancel()
         }
         .onReceive(keyboardMonitor.$customActionHotkey) { hotkey in
             guard let hotkey else { return }
@@ -254,6 +258,8 @@ struct TranslationPopupView: View {
     private func processText() {
         let trimmed = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
+            primaryNetworkTask?.cancel()
+            secondaryNetworkTask?.cancel()
             primaryOutputText = ""
             secondaryOutputText = ""
             primaryOutputPayload = nil
@@ -313,7 +319,8 @@ struct TranslationPopupView: View {
                 return
             }
             isPrimaryLoading = true
-            translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
+            primaryNetworkTask?.cancel()
+            primaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
                 guard primaryRequestId == requestId else { return }
                 isPrimaryLoading = false
                 switch result {
@@ -321,6 +328,7 @@ struct TranslationPopupView: View {
                     primaryOutputText = text
                     primaryOutputPayload = RichTextPayload(plain: text, html: nil, rtf: nil)
                 case .failure(let error):
+                    if (error as? URLError)?.code == .cancelled { return }
                     primaryOutputText = ""
                     primaryOutputPayload = nil
                     translationService.errorMessage = error.localizedDescription
@@ -338,7 +346,8 @@ struct TranslationPopupView: View {
                 return
             }
             isSecondaryLoading = true
-            translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
+            secondaryNetworkTask?.cancel()
+            secondaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
                 guard secondaryRequestId == requestId else { return }
                 isSecondaryLoading = false
                 switch result {
@@ -346,6 +355,7 @@ struct TranslationPopupView: View {
                     secondaryOutputText = text
                     secondaryOutputPayload = RichTextPayload(plain: text, html: nil, rtf: nil)
                 case .failure(let error):
+                    if (error as? URLError)?.code == .cancelled { return }
                     secondaryOutputText = ""
                     secondaryOutputPayload = nil
                     translationService.errorMessage = error.localizedDescription
@@ -364,8 +374,9 @@ struct TranslationPopupView: View {
         let requestId = UUID()
         primaryRequestId = requestId
         isPrimaryLoading = true
+        primaryNetworkTask?.cancel()
 
-        translationService.translateText(text: text, targetLanguage: selectedLanguage, modelOverride: translationService.builtInTranslateModel) { result in
+        primaryNetworkTask = translationService.translateText(text: text, targetLanguage: selectedLanguage, modelOverride: translationService.builtInTranslateModel) { result in
             guard primaryRequestId == requestId else { return }
             isPrimaryLoading = false
             switch result {
@@ -373,6 +384,7 @@ struct TranslationPopupView: View {
                 primaryOutputText = text
                 primaryOutputPayload = RichTextPayload(plain: text, html: nil, rtf: nil)
             case .failure(let error):
+                if (error as? URLError)?.code == .cancelled { return }
                 primaryOutputText = ""
                 primaryOutputPayload = nil
                 translationService.errorMessage = error.localizedDescription
@@ -418,4 +430,3 @@ struct TranslationPopupView: View {
         RichTextPasteboard.write(payload, to: pasteboard)
     }
 }
-

@@ -13,6 +13,8 @@ struct MainTranslationView: View {
     @State private var isSecondaryLoading: Bool = false
     @State private var primaryRequestId: UUID = UUID()
     @State private var secondaryRequestId: UUID = UUID()
+    @State private var primaryNetworkTask: URLSessionDataTask?
+    @State private var secondaryNetworkTask: URLSessionDataTask?
     @State private var primaryTitle: String = "Starred 1"
     @State private var secondaryTitle: String = "Starred 2"
     
@@ -56,6 +58,8 @@ struct MainTranslationView: View {
                             processingTask?.cancel()
                             
                             if sourceText.isEmpty {
+                                primaryNetworkTask?.cancel()
+                                secondaryNetworkTask?.cancel()
                                 primaryOutputText = ""
                                 secondaryOutputText = ""
                                 isPrimaryLoading = false
@@ -164,13 +168,15 @@ struct MainTranslationView: View {
         primaryRequestId = requestId
         isPrimaryLoading = true
 
-        translationService.translateText(text: text, targetLanguage: selectedLanguage, modelOverride: translationService.builtInTranslateModel) { result in
+        primaryNetworkTask?.cancel()
+        primaryNetworkTask = translationService.translateText(text: text, targetLanguage: selectedLanguage, modelOverride: translationService.builtInTranslateModel) { result in
             guard primaryRequestId == requestId else { return }
             isPrimaryLoading = false
             switch result {
             case .success(let text):
                 primaryOutputText = text
             case .failure(let error):
+                if (error as? URLError)?.code == .cancelled { return }
                 primaryOutputText = ""
                 translationService.errorMessage = error.localizedDescription
             }
@@ -327,6 +333,8 @@ struct MainTranslationView: View {
     }
     
     private func clearSourceText() {
+        primaryNetworkTask?.cancel()
+        secondaryNetworkTask?.cancel()
         sourceText = ""
         primaryOutputText = ""
         secondaryOutputText = ""
@@ -347,6 +355,8 @@ struct MainTranslationView: View {
     private func processText() {
         let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
+            primaryNetworkTask?.cancel()
+            secondaryNetworkTask?.cancel()
             primaryOutputText = ""
             secondaryOutputText = ""
             isPrimaryLoading = false
@@ -424,13 +434,15 @@ struct MainTranslationView: View {
                 return
             }
             isPrimaryLoading = true
-            translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
+            primaryNetworkTask?.cancel()
+            primaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
                 guard primaryRequestId == requestId else { return }
                 isPrimaryLoading = false
                 switch result {
                 case .success(let text):
                     primaryOutputText = text
                 case .failure(let error):
+                    if (error as? URLError)?.code == .cancelled { return }
                     primaryOutputText = ""
                     translationService.errorMessage = error.localizedDescription
                 }
@@ -445,13 +457,15 @@ struct MainTranslationView: View {
                 return
             }
             isSecondaryLoading = true
-            translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
+            secondaryNetworkTask?.cancel()
+            secondaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
                 guard secondaryRequestId == requestId else { return }
                 isSecondaryLoading = false
                 switch result {
                 case .success(let text):
                     secondaryOutputText = text
                 case .failure(let error):
+                    if (error as? URLError)?.code == .cancelled { return }
                     secondaryOutputText = ""
                     translationService.errorMessage = error.localizedDescription
                 }
@@ -473,4 +487,3 @@ struct MainTranslationView: View {
         runAction(action, target: .secondary, text: trimmed)
     }
 }
-

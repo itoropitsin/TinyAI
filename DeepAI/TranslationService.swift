@@ -52,7 +52,11 @@ struct CustomAction: Codable, Identifiable, Equatable {
 class TranslationService: ObservableObject {
     @Published var apiKey: String = "" {
         didSet {
-            UserDefaults.standard.set(apiKey, forKey: apiKeyDefaultsKey)
+            if apiKey.isEmpty {
+                KeychainStore.delete(service: keychainService, account: apiKeyDefaultsKey)
+            } else {
+                _ = KeychainStore.saveString(apiKey, service: keychainService, account: apiKeyDefaultsKey)
+            }
         }
     }
 
@@ -85,7 +89,10 @@ class TranslationService: ObservableObject {
     @Published var isTranslating: Bool = false
     @Published var errorMessage: String?
     
-    private let baseURL = "https://api.openai.com/v1/chat/completions"
+    private let baseURLString = "https://api.openai.com/v1/chat/completions"
+    private let keychainService: String
+    private let session: URLSession
+    private let jsonDecoder = JSONDecoder()
 
     private let apiKeyDefaultsKey = "OpenAIAPIKey"
     private let legacyModelDefaultsKey = "OpenAIModel"
@@ -96,8 +103,18 @@ class TranslationService: ObservableObject {
     private let builtInTranslateModelDefaultsKey = "BuiltInTranslateModelV1"
     
     init() {
-        if let savedKey = UserDefaults.standard.string(forKey: apiKeyDefaultsKey) {
+        keychainService = Bundle.main.bundleIdentifier ?? "DeepAI"
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = 30
+        configuration.timeoutIntervalForResource = 60
+        session = URLSession(configuration: configuration)
+
+        if let savedKey = KeychainStore.loadString(service: keychainService, account: apiKeyDefaultsKey) {
             apiKey = savedKey
+        } else if let legacySavedKey = UserDefaults.standard.string(forKey: apiKeyDefaultsKey) {
+            apiKey = legacySavedKey
+            _ = KeychainStore.saveString(legacySavedKey, service: keychainService, account: apiKeyDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: apiKeyDefaultsKey)
         }
 
         if let savedModelRaw = UserDefaults.standard.string(forKey: builtInTranslateModelDefaultsKey),
@@ -533,15 +550,33 @@ Rules:
         return requestBody
     }
 
-    private func performChatCompletion(requestBody: [String: Any], completion: @escaping (Result<String, Error>) -> Void) {
+    private struct ChatCompletionResponse: Decodable {
+        struct Choice: Decodable {
+            struct Message: Decodable {
+                let content: String
+            }
+            let message: Message
+        }
+        let choices: [Choice]
+    }
+
+    private struct APIErrorResponse: Decodable {
+        struct APIError: Decodable {
+            let message: String
+        }
+        let error: APIError
+    }
+
+    @discardableResult
+    private func performChatCompletion(requestBody: [String: Any], completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
         guard !apiKey.isEmpty else {
             completion(.failure(TranslationError.apiKeyMissing))
-            return
+            return nil
         }
 
-        guard let url = URL(string: baseURL) else {
+        guard let url = URL(string: baseURLString) else {
             completion(.failure(TranslationError.invalidURL))
-            return
+            return nil
         }
 
         var request = URLRequest(url: url)
@@ -553,50 +588,58 @@ Rules:
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         } catch {
             completion(.failure(error))
-            return
+            return nil
         }
 
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
+        let task = session.dataTask(with: request) { [weak self] data, response, error in
+            guard let self else { return }
 
-                guard let data = data else {
-                    completion(.failure(TranslationError.noData))
-                    return
-                }
-
-                if let httpResponse = response as? HTTPURLResponse,
-                   httpResponse.statusCode != 200 {
-                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let errorMessage = errorData["error"] as? [String: Any],
-                       let message = errorMessage["message"] as? String {
-                        completion(.failure(TranslationError.apiError(message)))
-                    } else {
-                        completion(.failure(TranslationError.httpError(httpResponse.statusCode)))
-                    }
-                    return
-                }
-
-                do {
-                    let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                    guard let choices = json?["choices"] as? [[String: Any]],
-                          let firstChoice = choices.first,
-                          let message = firstChoice["message"] as? [String: Any],
-                          let content = message["content"] as? String else {
-                        completion(.failure(TranslationError.invalidResponse))
-                        return
-                    }
-
-                    let text = content.trimmingCharacters(in: .whitespacesAndNewlines)
-                    completion(.success(text))
-                } catch {
+            if let error {
+                DispatchQueue.main.async {
                     completion(.failure(error))
                 }
+                return
             }
-        }.resume()
+
+            guard let data else {
+                DispatchQueue.main.async {
+                    completion(.failure(TranslationError.noData))
+                }
+                return
+            }
+
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+                let translatedError: Error
+                if let apiError = try? self.jsonDecoder.decode(APIErrorResponse.self, from: data) {
+                    translatedError = TranslationError.apiError(apiError.error.message)
+                } else {
+                    translatedError = TranslationError.httpError(httpResponse.statusCode)
+                }
+                DispatchQueue.main.async {
+                    completion(.failure(translatedError))
+                }
+                return
+            }
+
+            let result: Result<String, Error>
+            do {
+                let decoded = try self.jsonDecoder.decode(ChatCompletionResponse.self, from: data)
+                guard let content = decoded.choices.first?.message.content else {
+                    result = .failure(TranslationError.invalidResponse)
+                    DispatchQueue.main.async { completion(result) }
+                    return
+                }
+                result = .success(content.trimmingCharacters(in: .whitespacesAndNewlines))
+            } catch {
+                result = .failure(error)
+            }
+
+            DispatchQueue.main.async {
+                completion(result)
+            }
+        }
+        task.resume()
+        return task
     }
     
     func translate(text: String, targetLanguage: String, completion: @escaping (Result<String, Error>) -> Void) {
@@ -629,50 +672,54 @@ Rules:
         }
     }
 
-    func translateText(text: String, targetLanguage: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) {
+    @discardableResult
+    func translateText(text: String, targetLanguage: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             completion(.failure(TranslationError.emptyText))
-            return
+            return nil
         }
 
         let modelToUse = modelOverride ?? .gpt5Mini
         let requestBody = buildRequestBody(text: text, targetLanguage: targetLanguage, model: modelToUse)
-        performChatCompletion(requestBody: requestBody, completion: completion)
+        return performChatCompletion(requestBody: requestBody, completion: completion)
     }
 
-    func translateHTML(html: String, targetLanguage: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) {
+    @discardableResult
+    func translateHTML(html: String, targetLanguage: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
         guard !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             completion(.failure(TranslationError.emptyText))
-            return
+            return nil
         }
 
         let modelToUse = modelOverride ?? .gpt5Mini
         let requestBody = buildHTMLTranslateRequestBody(html: html, targetLanguage: targetLanguage, model: modelToUse)
-        performChatCompletion(requestBody: requestBody, completion: completion)
+        return performChatCompletion(requestBody: requestBody, completion: completion)
     }
 
-    func grammarFix(text: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) {
+    @discardableResult
+    func grammarFix(text: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             completion(.failure(TranslationError.emptyText))
-            return
+            return nil
         }
 
         let modelToUse = modelOverride ?? .gpt5Mini
         let requestBody = buildGrammarFixRequestBody(text: text, model: modelToUse)
-        performChatCompletion(requestBody: requestBody, completion: completion)
+        return performChatCompletion(requestBody: requestBody, completion: completion)
     }
 
-    func runCustomAction(text: String, prompt: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) {
+    @discardableResult
+    func runCustomAction(text: String, prompt: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty else {
             completion(.failure(TranslationError.emptyText))
-            return
+            return nil
         }
 
         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPrompt.isEmpty else {
             completion(.failure(TranslationError.customPromptMissing))
-            return
+            return nil
         }
 
         isTranslating = true
@@ -680,7 +727,7 @@ Rules:
 
         let modelToUse = modelOverride ?? .gpt5Mini
         let requestBody = buildCustomActionRequestBody(text: trimmedText, prompt: trimmedPrompt, model: modelToUse)
-        performChatCompletion(requestBody: requestBody) { [weak self] result in
+        return performChatCompletion(requestBody: requestBody) { [weak self] result in
             self?.isTranslating = false
             switch result {
             case .success:
@@ -696,15 +743,16 @@ Rules:
         }
     }
 
-    func grammarFixHTML(html: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) {
+    @discardableResult
+    func grammarFixHTML(html: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
         guard !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             completion(.failure(TranslationError.emptyText))
-            return
+            return nil
         }
 
         let modelToUse = modelOverride ?? .gpt5Mini
         let requestBody = buildHTMLGrammarFixRequestBody(html: html, model: modelToUse)
-        performChatCompletion(requestBody: requestBody, completion: completion)
+        return performChatCompletion(requestBody: requestBody, completion: completion)
     }
 }
 
@@ -739,4 +787,3 @@ enum TranslationError: LocalizedError {
         }
     }
 }
-

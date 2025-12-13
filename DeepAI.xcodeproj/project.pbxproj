@@ -6,17 +6,18 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		2C2167412EEC73E1004A2529 /* KeyboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */; };
-		2C2167422EEC73E1004A2529 /* MainTranslationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167322EEC73E1004A2529 /* MainTranslationView.swift */; };
-		2C2167442EEC73E1004A2529 /* DeepAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21672F2EEC73E1004A2529 /* DeepAIApp.swift */; };
-		2C2167462EEC73E1004A2529 /* TranslationPopupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */; };
-		2C2167492EEC73E1004A2529 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167332EEC73E1004A2529 /* SettingsView.swift */; };
-		2C21674A2EEC73E1004A2529 /* TranslationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167352EEC73E1004A2529 /* TranslationService.swift */; };
-		2C2167522EEC73E1004A2529 /* DraggableWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167512EEC73E1004A2529 /* DraggableWindow.swift */; };
-		2C2167602F0A0000004A2529 /* RichTextPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21675F2F0A0000004A2529 /* RichTextPayload.swift */; };
-		2C21674B2EEC73E1004A2529 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2C21672D2EEC73E1004A2529 /* Assets.xcassets */; };
-/* End PBXBuildFile section */
+	/* Begin PBXBuildFile section */
+			2C2167412EEC73E1004A2529 /* KeyboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */; };
+			2C2167422EEC73E1004A2529 /* MainTranslationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167322EEC73E1004A2529 /* MainTranslationView.swift */; };
+			2C2167442EEC73E1004A2529 /* DeepAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21672F2EEC73E1004A2529 /* DeepAIApp.swift */; };
+			2C2167462EEC73E1004A2529 /* TranslationPopupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */; };
+			2C2167492EEC73E1004A2529 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167332EEC73E1004A2529 /* SettingsView.swift */; };
+			2C21674A2EEC73E1004A2529 /* TranslationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167352EEC73E1004A2529 /* TranslationService.swift */; };
+			2C2167732F0A1234004A2529 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167722F0A1234004A2529 /* KeychainStore.swift */; };
+			2C2167522EEC73E1004A2529 /* DraggableWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167512EEC73E1004A2529 /* DraggableWindow.swift */; };
+			2C2167602F0A0000004A2529 /* RichTextPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21675F2F0A0000004A2529 /* RichTextPayload.swift */; };
+			2C21674B2EEC73E1004A2529 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2C21672D2EEC73E1004A2529 /* Assets.xcassets */; };
+	/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		2C2167022EEC7399004A2529 /* PBXContainerItemProxy */ = {
@@ -35,7 +36,7 @@
 		};
 /* End PBXContainerItemProxy section */
 
-/* Begin PBXFileReference section */
+	/* Begin PBXFileReference section */
 		2C2166F42EEC7398004A2529 /* DeepAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeepAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2C2167012EEC7399004A2529 /* DeepAITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeepAITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2C21670B2EEC7399004A2529 /* DeepAIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeepAIUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -46,12 +47,13 @@
 		2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardMonitor.swift; sourceTree = "<group>"; };
 		2C2167322EEC73E1004A2529 /* MainTranslationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTranslationView.swift; sourceTree = "<group>"; };
 		2C2167332EEC73E1004A2529 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationPopupView.swift; sourceTree = "<group>"; };
-		2C2167352EEC73E1004A2529 /* TranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationService.swift; sourceTree = "<group>"; };
-		2C21675F2F0A0000004A2529 /* RichTextPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextPayload.swift; sourceTree = "<group>"; };
-		2C2167512EEC73E1004A2529 /* DraggableWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraggableWindow.swift; sourceTree = "<group>"; };
-		2C2167382EEC73E1004A2529 /* DeepAITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepAITests.swift; sourceTree = "<group>"; };
-		2C21673A2EEC73E1004A2529 /* DeepAIUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepAIUITests.swift; sourceTree = "<group>"; };
+			2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationPopupView.swift; sourceTree = "<group>"; };
+			2C2167352EEC73E1004A2529 /* TranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationService.swift; sourceTree = "<group>"; };
+			2C2167722F0A1234004A2529 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+			2C21675F2F0A0000004A2529 /* RichTextPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextPayload.swift; sourceTree = "<group>"; };
+			2C2167512EEC73E1004A2529 /* DraggableWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraggableWindow.swift; sourceTree = "<group>"; };
+			2C2167382EEC73E1004A2529 /* DeepAITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepAITests.swift; sourceTree = "<group>"; };
+			2C21673A2EEC73E1004A2529 /* DeepAIUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepAIUITests.swift; sourceTree = "<group>"; };
 		2C21673B2EEC73E1004A2529 /* DeepAIUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepAIUITestsLaunchTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -100,21 +102,22 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		2C2167362EEC73E1004A2529 /* DeepAI */ = {
-			isa = PBXGroup;
-			children = (
-				2C21672D2EEC73E1004A2529 /* Assets.xcassets */,
-				2C21672E2EEC73E1004A2529 /* DeepAI.entitlements */,
-				2C21672F2EEC73E1004A2529 /* DeepAIApp.swift */,
-				2C2167302EEC73E1004A2529 /* Info.plist */,
-				2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */,
-				2C2167322EEC73E1004A2529 /* MainTranslationView.swift */,
-				2C21675F2F0A0000004A2529 /* RichTextPayload.swift */,
-				2C2167332EEC73E1004A2529 /* SettingsView.swift */,
-				2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */,
-				2C2167352EEC73E1004A2529 /* TranslationService.swift */,
-				2C2167512EEC73E1004A2529 /* DraggableWindow.swift */,
-			);
+			2C2167362EEC73E1004A2529 /* DeepAI */ = {
+				isa = PBXGroup;
+				children = (
+					2C21672D2EEC73E1004A2529 /* Assets.xcassets */,
+					2C21672E2EEC73E1004A2529 /* DeepAI.entitlements */,
+					2C21672F2EEC73E1004A2529 /* DeepAIApp.swift */,
+					2C2167302EEC73E1004A2529 /* Info.plist */,
+					2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */,
+					2C2167322EEC73E1004A2529 /* MainTranslationView.swift */,
+					2C2167722F0A1234004A2529 /* KeychainStore.swift */,
+					2C21675F2F0A0000004A2529 /* RichTextPayload.swift */,
+					2C2167332EEC73E1004A2529 /* SettingsView.swift */,
+					2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */,
+					2C2167352EEC73E1004A2529 /* TranslationService.swift */,
+					2C2167512EEC73E1004A2529 /* DraggableWindow.swift */,
+				);
 			path = DeepAI;
 			sourceTree = "<group>";
 		};
@@ -267,21 +270,22 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		2C2166F02EEC7398004A2529 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				2C2167412EEC73E1004A2529 /* KeyboardMonitor.swift in Sources */,
-				2C2167422EEC73E1004A2529 /* MainTranslationView.swift in Sources */,
-				2C2167442EEC73E1004A2529 /* DeepAIApp.swift in Sources */,
-				2C2167462EEC73E1004A2529 /* TranslationPopupView.swift in Sources */,
-				2C2167492EEC73E1004A2529 /* SettingsView.swift in Sources */,
-				2C21674A2EEC73E1004A2529 /* TranslationService.swift in Sources */,
-				2C2167602F0A0000004A2529 /* RichTextPayload.swift in Sources */,
-				2C2167522EEC73E1004A2529 /* DraggableWindow.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+			2C2166F02EEC7398004A2529 /* Sources */ = {
+				isa = PBXSourcesBuildPhase;
+				buildActionMask = 2147483647;
+				files = (
+					2C2167412EEC73E1004A2529 /* KeyboardMonitor.swift in Sources */,
+					2C2167422EEC73E1004A2529 /* MainTranslationView.swift in Sources */,
+					2C2167442EEC73E1004A2529 /* DeepAIApp.swift in Sources */,
+					2C2167462EEC73E1004A2529 /* TranslationPopupView.swift in Sources */,
+					2C2167492EEC73E1004A2529 /* SettingsView.swift in Sources */,
+					2C21674A2EEC73E1004A2529 /* TranslationService.swift in Sources */,
+					2C2167732F0A1234004A2529 /* KeychainStore.swift in Sources */,
+					2C2167602F0A0000004A2529 /* RichTextPayload.swift in Sources */,
+					2C2167522EEC73E1004A2529 /* DraggableWindow.swift in Sources */,
+				);
+				runOnlyForDeploymentPostprocessing = 0;
+			};
 		2C2166FD2EEC7399004A2529 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -314,7 +318,7 @@
 /* Begin XCBuildConfiguration section */
 		2C2167132EEC7399004A2529 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			buildSettings = {
+				buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -345,9 +349,9 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = Y29LYS5D8M;
+					COPY_PHASE_STRIP = NO;
+					DEBUG_INFORMATION_FORMAT = dwarf;
+					DEVELOPMENT_TEAM = Y29LYS5D8M;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -366,19 +370,19 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+					MACOSX_DEPLOYMENT_TARGET = 13.5;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+					SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+					SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				};
+				name = Debug;
 			};
-			name = Debug;
-		};
-		2C2167142EEC7399004A2529 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
+			2C2167142EEC7399004A2529 /* Release */ = {
+				isa = XCBuildConfiguration;
+				buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -409,12 +413,13 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = Y29LYS5D8M;
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+					COPY_PHASE_STRIP = YES;
+					DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+					DEVELOPMENT_TEAM = Y29LYS5D8M;
+					DEAD_CODE_STRIPPING = YES;
+					ENABLE_NS_ASSERTIONS = NO;
+					ENABLE_STRICT_OBJC_MSGSEND = YES;
+					ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -424,14 +429,16 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+					MACOSX_DEPLOYMENT_TARGET = 13.5;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				SDKROOT = macosx;
-				SWIFT_COMPILATION_MODE = wholemodule;
+					SDKROOT = macosx;
+					SWIFT_COMPILATION_MODE = wholemodule;
+					SWIFT_OPTIMIZATION_LEVEL = "-O";
+					STRIP_INSTALLED_PRODUCT = YES;
+				};
+				name = Release;
 			};
-			name = Release;
-		};
 		2C2167162EEC7399004A2529 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -500,15 +507,15 @@
 			};
 			name = Release;
 		};
-		2C2167192EEC7399004A2529 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
+			2C2167192EEC7399004A2529 /* Debug */ = {
+				isa = XCBuildConfiguration;
+				buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = Y29LYS5D8M;
 				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+					MACOSX_DEPLOYMENT_TARGET = 13.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = IT.DeepAITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -518,18 +525,18 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DeepAI.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DeepAI";
+				};
+				name = Debug;
 			};
-			name = Debug;
-		};
-		2C21671A2EEC7399004A2529 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
+			2C21671A2EEC7399004A2529 /* Release */ = {
+				isa = XCBuildConfiguration;
+				buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = Y29LYS5D8M;
 				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+					MACOSX_DEPLOYMENT_TARGET = 13.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = IT.DeepAITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -539,9 +546,9 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DeepAI.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DeepAI";
+				};
+				name = Release;
 			};
-			name = Release;
-		};
 		2C21671C2EEC7399004A2529 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {

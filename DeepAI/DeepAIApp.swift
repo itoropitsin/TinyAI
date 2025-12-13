@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import ApplicationServices
+import os
 
 @main
 struct DeepAIApp: App {
@@ -104,7 +105,8 @@ extension View {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var popupWindow: NSWindow?
     weak var translationService: TranslationService?
-    weak var keyboardMonitor: KeyboardMonitor?
+    var keyboardMonitor: KeyboardMonitor?
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "DeepAI", category: "AppDelegate")
 
     func isFrontmostWindowFullscreen() -> Bool {
         let systemWideElement = AXUIElementCreateSystemWide()
@@ -159,7 +161,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let accessEnabled = AXIsProcessTrustedWithOptions(options as CFDictionary)
         
         if !accessEnabled {
-            print("Accessibility permission is required for global hotkeys to work")
+            logger.notice("Accessibility permission is required for global hotkeys to work")
         }
     }
     
@@ -167,7 +169,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func showTranslationPopup(with payload: RichTextPayload) {
         // Ensure everything runs on the main thread
         DispatchQueue.main.async { [weak self] in
-            guard let self = self, let translationService = self.translationService else { return }
+            guard
+                let self = self,
+                let translationService = self.translationService,
+                let keyboardMonitor = self.keyboardMonitor
+            else { return }
             
             // Close the previous window if it's open
             if let existingWindow = self.popupWindow {
@@ -181,14 +187,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let wasActive = NSApplication.shared.isActive
             if !wasActive {
                 // Create the popup without switching desktops
-                self.createPopupWindow(payload: payload, translationService: translationService)
+                self.createPopupWindow(payload: payload, translationService: translationService, keyboardMonitor: keyboardMonitor)
             } else {
-                self.createPopupWindow(payload: payload, translationService: translationService)
+                self.createPopupWindow(payload: payload, translationService: translationService, keyboardMonitor: keyboardMonitor)
             }
         }
     }
     
-    private func createPopupWindow(payload: RichTextPayload, translationService: TranslationService) {
+    private func createPopupWindow(payload: RichTextPayload, translationService: TranslationService, keyboardMonitor: KeyboardMonitor) {
         // Create the view on the main thread
         let popupView = TranslationPopupView(selectedText: payload.plain, selectedPayload: payload, onClose: { [weak self] in
             DispatchQueue.main.async {
@@ -197,7 +203,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         })
         .environmentObject(translationService)
-        .environmentObject(keyboardMonitor ?? KeyboardMonitor())
+        .environmentObject(keyboardMonitor)
         
         // Create a hosting view with correct sizing
         let hostingView = NSHostingView(rootView: popupView)
@@ -255,4 +261,3 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         self.popupWindow = window
     }
 }
-

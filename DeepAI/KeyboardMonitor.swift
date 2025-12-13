@@ -2,6 +2,7 @@ import Cocoa
 import Carbon
 import ApplicationServices
 import Combine
+import os
 
 class KeyboardMonitor: ObservableObject {
     var onDoubleCommandC: ((RichTextPayload) -> Void)?
@@ -17,6 +18,14 @@ class KeyboardMonitor: ObservableObject {
     private var isSimulatingCopy: Bool = false
     private var setupRetryCount: Int = 0
     private let setupRetryLimit: Int = 10
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "DeepAI", category: "KeyboardMonitor")
+    private static let customActionKeyCodeToIndex: [Int64: Int] = [
+        18: 1, // 1
+        19: 2, // 2
+        20: 3, // 3
+        21: 4, // 4
+        23: 5  // 5
+    ]
     
     init() {
         setupGlobalHotkey()
@@ -42,7 +51,7 @@ class KeyboardMonitor: ObservableObject {
         )
         
         guard let eventTap = eventTap else {
-            print("Failed to create event tap")
+            logger.error("Failed to create event tap")
             scheduleSetupRetryIfNeeded()
             return
         }
@@ -90,19 +99,11 @@ class KeyboardMonitor: ObservableObject {
             }
 
             if isCustomActionHotkeysEnabled && flags.contains(.maskCommand) {
-                let mapping: [Int64: Int] = [
-                    18: 1, // 1
-                    19: 2, // 2
-                    20: 3, // 3
-                    21: 4, // 4
-                    23: 5  // 5
-                ]
-
-                if let index = mapping[keyCode], !isProcessingCustomAction {
+                if let index = Self.customActionKeyCodeToIndex[keyCode], !isProcessingCustomAction {
                     isProcessingCustomAction = true
                     DispatchQueue.main.async { [weak self] in
                         self?.customActionHotkey = index
-                        DispatchQueue.main.async {
+                        DispatchQueue.main.async { [weak self] in
                             self?.customActionHotkey = nil
                         }
                     }
@@ -309,7 +310,10 @@ class KeyboardMonitor: ObservableObject {
         }
         if let eventTap = eventTap {
             CGEvent.tapEnable(tap: eventTap, enable: false)
+            CFMachPortInvalidate(eventTap)
         }
+
+        runLoopSource = nil
+        eventTap = nil
     }
 }
-
