@@ -15,8 +15,9 @@ struct DeepAIApp: App {
                 .environmentObject(keyboardMonitor)
                 .onAppear {
                     appDelegate.translationService = translationService
-                    keyboardMonitor.onDoubleCommandC = { [weak appDelegate] selectedText in
-                        appDelegate?.showTranslationPopup(with: selectedText)
+                    appDelegate.keyboardMonitor = keyboardMonitor
+                    keyboardMonitor.onDoubleCommandC = { [weak appDelegate] payload in
+                        appDelegate?.showTranslationPopup(with: payload)
                     }
                 }
         }
@@ -28,6 +29,7 @@ struct DeepAIApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var popupWindow: NSWindow?
     weak var translationService: TranslationService?
+    weak var keyboardMonitor: KeyboardMonitor?
 
     func isFrontmostWindowFullscreen() -> Bool {
         let systemWideElement = AXUIElementCreateSystemWide()
@@ -87,7 +89,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     
-    func showTranslationPopup(with text: String) {
+    func showTranslationPopup(with payload: RichTextPayload) {
         // Убеждаемся, что все выполняется на главном потоке
         DispatchQueue.main.async { [weak self] in
             guard let self = self, let translationService = self.translationService else { return }
@@ -104,22 +106,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let wasActive = NSApplication.shared.isActive
             if !wasActive {
                 // Активируем приложение мягко, чтобы перейти на текущий desktop
-                self.createPopupWindow(text: text, translationService: translationService)
+                self.createPopupWindow(payload: payload, translationService: translationService)
             } else {
-                self.createPopupWindow(text: text, translationService: translationService)
+                self.createPopupWindow(payload: payload, translationService: translationService)
             }
         }
     }
     
-    private func createPopupWindow(text: String, translationService: TranslationService) {
+    private func createPopupWindow(payload: RichTextPayload, translationService: TranslationService) {
         // Создаем view на главном потоке
-        let popupView = TranslationPopupView(selectedText: text, onClose: { [weak self] in
+        let popupView = TranslationPopupView(selectedText: payload.plain, selectedPayload: payload, onClose: { [weak self] in
             DispatchQueue.main.async {
                 self?.popupWindow?.close()
                 self?.popupWindow = nil
             }
         })
         .environmentObject(translationService)
+        .environmentObject(keyboardMonitor ?? KeyboardMonitor())
         
         // Создаем hosting view с правильными размерами
         let hostingView = NSHostingView(rootView: popupView)

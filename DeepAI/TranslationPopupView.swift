@@ -1,20 +1,29 @@
 import SwiftUI
 import AppKit
+import Combine
 
 struct TranslationPopupView: View {
     let selectedText: String
+    let selectedPayload: RichTextPayload?
     let onClose: (() -> Void)?
     @EnvironmentObject var translationService: TranslationService
-    @State private var translatedText: String = ""
-    @State private var grammarFixedText: String = ""
+    @EnvironmentObject var keyboardMonitor: KeyboardMonitor
+    @State private var primaryOutputText: String = ""
+    @State private var secondaryOutputText: String = ""
+    @State private var primaryOutputPayload: RichTextPayload?
+    @State private var secondaryOutputPayload: RichTextPayload?
     @State private var selectedLanguage: String = "English"
     @State private var showError: Bool = false
-    @State private var isTranslationLoading: Bool = false
-    @State private var isGrammarLoading: Bool = false
-    @State private var currentRequestId: UUID = UUID()
+    @State private var isPrimaryLoading: Bool = false
+    @State private var isSecondaryLoading: Bool = false
+    @State private var primaryRequestId: UUID = UUID()
+    @State private var secondaryRequestId: UUID = UUID()
+    @State private var primaryTitle: String = "Starred 1"
+    @State private var secondaryTitle: String = "Starred 2"
     
-    init(selectedText: String, onClose: (() -> Void)? = nil) {
+    init(selectedText: String, selectedPayload: RichTextPayload? = nil, onClose: (() -> Void)? = nil) {
         self.selectedText = selectedText
+        self.selectedPayload = selectedPayload
         self.onClose = onClose
     }
     
@@ -40,19 +49,13 @@ struct TranslationPopupView: View {
                 .buttonStyle(.plain)
             }
 
-            if translationService.isTranslationEnabled && translationService.isGrammarEnabled {
-                VSplitView {
-                    translationSection
-                        .frame(minHeight: 0, maxHeight: .infinity)
-                        .layoutPriority(1)
-                    grammarSection
-                        .frame(minHeight: 0, maxHeight: .infinity)
-                        .layoutPriority(1)
-                }
-            } else if translationService.isTranslationEnabled {
-                translationSection
-            } else if translationService.isGrammarEnabled {
-                grammarSection
+            VSplitView {
+                primarySection
+                    .frame(minHeight: 0, maxHeight: .infinity)
+                    .layoutPriority(1)
+                secondarySection
+                    .frame(minHeight: 0, maxHeight: .infinity)
+                    .layoutPriority(1)
             }
         }
         .padding(16)
@@ -61,6 +64,33 @@ struct TranslationPopupView: View {
         .cornerRadius(14)
         .shadow(radius: 12)
         .onAppear {
+            keyboardMonitor.isCustomActionHotkeysEnabled = true
+            refreshTitles()
+            processText()
+        }
+        .onDisappear {
+            keyboardMonitor.isCustomActionHotkeysEnabled = false
+        }
+        .onReceive(keyboardMonitor.$customActionHotkey) { hotkey in
+            guard let hotkey else { return }
+            runSecondaryAction(at: hotkey - 1)
+        }
+        .onChange(of: selectedLanguage) { _ in
+            guard translationService.isStarredPrimaryBuiltInTranslate else { return }
+            refreshTitles()
+            processText()
+        }
+        .onChange(of: translationService.starredPrimarySelectionKey) { _ in
+            refreshTitles()
+            processText()
+        }
+        .onChange(of: translationService.starredSecondaryActionId) { _ in
+            refreshTitles()
+            processText()
+        }
+        .onChange(of: translationService.builtInTranslateModel) { _ in
+            guard translationService.isStarredPrimaryBuiltInTranslate else { return }
+            refreshTitles()
             processText()
         }
         .alert("Ошибка", isPresented: $showError) {
@@ -70,51 +100,141 @@ struct TranslationPopupView: View {
         }
     }
 
-    private var translationSection: some View {
+    private func refreshTitles() {
+        if translationService.isStarredPrimaryBuiltInTranslate {
+            primaryTitle = "Translate"
+        } else {
+            let primaryAction = translationService.starredPrimaryCustomAction()
+            if let primaryAction {
+                let title = primaryAction.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Action" : primaryAction.title
+                primaryTitle = title
+            } else {
+                primaryTitle = "Starred 1"
+            }
+        }
+
+        let secondaryAction = translationService.customActions.first(where: { $0.id == translationService.starredSecondaryActionId })
+        if let secondaryAction {
+            let title = secondaryAction.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Action" : secondaryAction.title
+            secondaryTitle = title
+        } else {
+            secondaryTitle = "Starred 2"
+        }
+    }
+
+
+    private var primarySection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
-                Text("Перевод")
+                Text(primaryTitle)
                     .font(.headline)
                 Spacer()
 
-                Picker("", selection: $selectedLanguage) {
-                    ForEach(languages, id: \.self) { language in
-                        Text(language).tag(language)
+                if translationService.isStarredPrimaryBuiltInTranslate {
+                    Picker("", selection: $selectedLanguage) {
+                        ForEach(languages, id: \.self) { language in
+                            Text(language).tag(language)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(width: 160)
+                }
+
+                Button(action: {
+                    copyToClipboard(primaryOutputPayload ?? RichTextPayload(plain: primaryOutputText, html: nil, rtf: nil))
+                }) {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .help("Копировать")
+                .disabled(primaryOutputText.isEmpty || isPrimaryLoading)
+
+                Button("Заменить") {
+                    replaceText(with: primaryOutputPayload ?? RichTextPayload(plain: primaryOutputText, html: nil, rtf: nil))
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(primaryOutputText.isEmpty || isPrimaryLoading)
+            }
+
+            if isPrimaryLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+            } else {
+                ScrollView {
+                    Text(primaryOutputText.isEmpty ? "Результат появится здесь..." : primaryOutputText)
+                        .font(.body)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .foregroundColor(primaryOutputText.isEmpty ? .secondary : .primary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(10)
+            }
+        }
+        .frame(minHeight: 0, maxHeight: .infinity)
+        .layoutPriority(1)
+    }
+
+    private var secondarySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Text(secondaryTitle)
+                    .font(.headline)
+                Spacer()
+
+                Button(action: {
+                    copyToClipboard(secondaryOutputPayload ?? RichTextPayload(plain: secondaryOutputText, html: nil, rtf: nil))
+                }) {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .help("Копировать")
+                .disabled(secondaryOutputText.isEmpty || isSecondaryLoading)
+
+                Button("Заменить") {
+                    replaceText(with: secondaryOutputPayload ?? RichTextPayload(plain: secondaryOutputText, html: nil, rtf: nil))
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(secondaryOutputText.isEmpty || isSecondaryLoading)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Array(translationService.customActions.enumerated()), id: \.element.id) { index, action in
+                        let title = action.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ? "Action \(index + 1)"
+                        : action.title
+
+                        Button(title) {
+                            runSecondaryAction(at: index)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(
+                            selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || isSecondaryLoading
+                        )
+                        .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: [.command])
                     }
                 }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .frame(width: 160)
-                .onChange(of: selectedLanguage) { _ in
-                    processText(translationOnly: true)
-                }
-
-                Button(action: { copyToClipboard(translatedText) }) {
-                    Image(systemName: "doc.on.doc")
-                }
-                .buttonStyle(.borderless)
-                .help("Копировать")
-                .disabled(translatedText.isEmpty || isTranslationLoading)
-
-                Button("Заменить") {
-                    replaceText(with: translatedText)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(translatedText.isEmpty || isTranslationLoading)
+                .padding(.vertical, 2)
             }
 
-            if isTranslationLoading {
+            if isSecondaryLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
             } else {
                 ScrollView {
-                    Text(translatedText.isEmpty ? "Перевод появится здесь..." : translatedText)
+                    Text(secondaryOutputText.isEmpty ? "Результат появится здесь..." : secondaryOutputText)
                         .font(.body)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(10)
-                        .foregroundColor(translatedText.isEmpty ? .secondary : .primary)
+                        .foregroundColor(secondaryOutputText.isEmpty ? .secondary : .primary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(NSColor.controlBackgroundColor))
@@ -125,110 +245,153 @@ struct TranslationPopupView: View {
         .layoutPriority(1)
     }
 
-    private var grammarSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                Text("Грамматика")
-                    .font(.headline)
-                Spacer()
-
-                Button(action: { copyToClipboard(grammarFixedText) }) {
-                    Image(systemName: "doc.on.doc")
-                }
-                .buttonStyle(.borderless)
-                .help("Копировать")
-                .disabled(grammarFixedText.isEmpty || isGrammarLoading)
-
-                Button("Заменить") {
-                    replaceText(with: grammarFixedText)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(grammarFixedText.isEmpty || isGrammarLoading)
-            }
-
-            if isGrammarLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-            } else {
-                ScrollView {
-                    Text(grammarFixedText.isEmpty ? "Исправленная версия появится здесь..." : grammarFixedText)
-                        .font(.body)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .foregroundColor(grammarFixedText.isEmpty ? .secondary : .primary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(10)
-            }
-        }
-        .frame(minHeight: 0, maxHeight: .infinity)
-        .layoutPriority(1)
-    }
-    
-    private func processText(translationOnly: Bool = false) {
+    private func processText() {
         let trimmed = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            translatedText = ""
-            grammarFixedText = ""
-            isTranslationLoading = false
-            isGrammarLoading = false
+            primaryOutputText = ""
+            secondaryOutputText = ""
+            primaryOutputPayload = nil
+            secondaryOutputPayload = nil
+            isPrimaryLoading = false
+            isSecondaryLoading = false
             return
         }
 
-        let requestId = UUID()
-        currentRequestId = requestId
+        let primaryAction = translationService.starredPrimaryCustomAction()
+        let secondaryAction = translationService.customActions.first(where: { $0.id == translationService.starredSecondaryActionId })
 
-        if translationService.isTranslationEnabled {
-            isTranslationLoading = true
-            translationService.translateText(text: trimmed, targetLanguage: selectedLanguage, modelOverride: nil) { result in
-                guard currentRequestId == requestId else { return }
-                isTranslationLoading = false
+        if translationService.isStarredPrimaryBuiltInTranslate {
+            runBuiltInTranslate(target: .primary, text: trimmed)
+        } else {
+            runAction(primaryAction, target: .primary, text: trimmed)
+        }
+        runAction(secondaryAction, target: .secondary, text: trimmed)
+    }
+
+    private enum OutputTarget {
+        case primary
+        case secondary
+    }
+
+    private func runAction(_ action: CustomAction?, target: OutputTarget, text: String) {
+        guard let action else {
+            switch target {
+            case .primary:
+                primaryTitle = "Starred 1"
+                primaryOutputText = ""
+                primaryOutputPayload = nil
+                isPrimaryLoading = false
+            case .secondary:
+                secondaryTitle = "Starred 2"
+                secondaryOutputText = ""
+                secondaryOutputPayload = nil
+                isSecondaryLoading = false
+            }
+            return
+        }
+
+        let title = action.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Action" : action.title
+        let prompt = action.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedPrompt = prompt.replacingOccurrences(of: "{{targetLanguage}}", with: selectedLanguage)
+        let emptyPromptMessage = "Промпт и модель для этого действия задаются в настройках."
+
+        switch target {
+        case .primary:
+            primaryTitle = title
+            let requestId = UUID()
+            primaryRequestId = requestId
+            if resolvedPrompt.isEmpty {
+                isPrimaryLoading = false
+                primaryOutputText = emptyPromptMessage
+                primaryOutputPayload = RichTextPayload(plain: emptyPromptMessage, html: nil, rtf: nil)
+                return
+            }
+            isPrimaryLoading = true
+            translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
+                guard primaryRequestId == requestId else { return }
+                isPrimaryLoading = false
                 switch result {
                 case .success(let text):
-                    translatedText = text
+                    primaryOutputText = text
+                    primaryOutputPayload = RichTextPayload(plain: text, html: nil, rtf: nil)
                 case .failure(let error):
-                    translatedText = ""
+                    primaryOutputText = ""
+                    primaryOutputPayload = nil
                     translationService.errorMessage = error.localizedDescription
                     showError = true
                 }
             }
-        } else {
-            translatedText = ""
-            isTranslationLoading = false
-        }
-
-        if translationOnly {
-            return
-        }
-
-        if translationService.isGrammarEnabled {
-            isGrammarLoading = true
-            translationService.grammarFix(text: trimmed, modelOverride: nil) { result in
-                guard currentRequestId == requestId else { return }
-                isGrammarLoading = false
+        case .secondary:
+            secondaryTitle = title
+            let requestId = UUID()
+            secondaryRequestId = requestId
+            if resolvedPrompt.isEmpty {
+                isSecondaryLoading = false
+                secondaryOutputText = emptyPromptMessage
+                secondaryOutputPayload = RichTextPayload(plain: emptyPromptMessage, html: nil, rtf: nil)
+                return
+            }
+            isSecondaryLoading = true
+            translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
+                guard secondaryRequestId == requestId else { return }
+                isSecondaryLoading = false
                 switch result {
                 case .success(let text):
-                    grammarFixedText = text
+                    secondaryOutputText = text
+                    secondaryOutputPayload = RichTextPayload(plain: text, html: nil, rtf: nil)
                 case .failure(let error):
-                    grammarFixedText = ""
+                    secondaryOutputText = ""
+                    secondaryOutputPayload = nil
                     translationService.errorMessage = error.localizedDescription
                     showError = true
                 }
             }
-        } else {
-            grammarFixedText = ""
-            isGrammarLoading = false
         }
     }
 
-    private func replaceText(with text: String) {
-        // Копируем текст в буфер обмена
+    private func runBuiltInTranslate(target: OutputTarget, text: String) {
+        guard target == .primary else {
+            return
+        }
+
+        primaryTitle = "Translate"
+        let requestId = UUID()
+        primaryRequestId = requestId
+        isPrimaryLoading = true
+
+        translationService.translateText(text: text, targetLanguage: selectedLanguage, modelOverride: translationService.builtInTranslateModel) { result in
+            guard primaryRequestId == requestId else { return }
+            isPrimaryLoading = false
+            switch result {
+            case .success(let text):
+                primaryOutputText = text
+                primaryOutputPayload = RichTextPayload(plain: text, html: nil, rtf: nil)
+            case .failure(let error):
+                primaryOutputText = ""
+                primaryOutputPayload = nil
+                translationService.errorMessage = error.localizedDescription
+                showError = true
+            }
+        }
+    }
+
+    private func runSecondaryAction(at index: Int) {
+        guard index >= 0 && index < translationService.customActions.count else {
+            return
+        }
+
+        let trimmed = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return
+        }
+
+        let action = translationService.customActions[index]
+        runAction(action, target: .secondary, text: trimmed)
+    }
+
+    private func replaceText(with payload: RichTextPayload) {
         let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        RichTextPasteboard.write(payload, to: pasteboard)
 
         // Небольшая задержка перед вставкой
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -244,10 +407,9 @@ struct TranslationPopupView: View {
         onClose?()
     }
 
-    private func copyToClipboard(_ text: String) {
+    private func copyToClipboard(_ payload: RichTextPayload) {
         let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        RichTextPasteboard.write(payload, to: pasteboard)
     }
 }
 
