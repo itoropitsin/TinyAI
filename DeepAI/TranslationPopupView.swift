@@ -62,7 +62,7 @@ struct TranslationPopupView: View {
             }
         }
         .padding(16)
-        .frame(width: 420, height: 520)
+        .frame(minWidth: 420, minHeight: 520)
         .background(Color(NSColor.windowBackgroundColor).opacity(0.95))
         .onAppear {
             keyboardMonitor.isCustomActionHotkeysEnabled = true
@@ -96,6 +96,9 @@ struct TranslationPopupView: View {
             refreshTitles()
             processText()
         }
+        .onReceive(translationService.$customActions) { _ in
+            refreshTitles()
+        }
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -109,7 +112,10 @@ struct TranslationPopupView: View {
         } else {
             let primaryAction = translationService.starredPrimaryCustomAction()
             if let primaryAction {
-                let title = primaryAction.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Action" : primaryAction.title
+                let fallbackTitle = translationService.customActions
+                    .firstIndex(where: { $0.id == primaryAction.id })
+                    .map { "Action \($0 + 1)" } ?? "Action 1"
+                let title = primaryAction.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? fallbackTitle : primaryAction.title
                 primaryTitle = title
             } else {
                 primaryTitle = "Starred 1"
@@ -118,11 +124,37 @@ struct TranslationPopupView: View {
 
         let secondaryAction = translationService.customActions.first(where: { $0.id == translationService.starredSecondaryActionId })
         if let secondaryAction {
-            let title = secondaryAction.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Action" : secondaryAction.title
+            let fallbackTitle = translationService.customActions
+                .firstIndex(where: { $0.id == secondaryAction.id })
+                .map { "Action \($0 + 1)" } ?? "Action 2"
+            let title = secondaryAction.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? fallbackTitle : secondaryAction.title
             secondaryTitle = title
         } else {
             secondaryTitle = "Starred 2"
         }
+    }
+
+    private func outputView(text: String, isLoading: Bool, emptyText: String) -> some View {
+        ZStack {
+            ScrollView {
+                Text(text.isEmpty ? emptyText : text)
+                    .font(.body)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .foregroundColor(text.isEmpty ? .secondary : .primary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.clear)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(10)
     }
 
 
@@ -162,23 +194,7 @@ struct TranslationPopupView: View {
                 .disabled(primaryOutputText.isEmpty || isPrimaryLoading)
             }
 
-            if isPrimaryLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-            } else {
-                ScrollView {
-                    Text(primaryOutputText.isEmpty ? "Result will appear here..." : primaryOutputText)
-                        .font(.body)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .foregroundColor(primaryOutputText.isEmpty ? .secondary : .primary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(10)
-            }
+            outputView(text: primaryOutputText, isLoading: isPrimaryLoading, emptyText: "Result will appear here...")
         }
         .frame(minHeight: 0, maxHeight: .infinity)
         .layoutPriority(1)
@@ -186,6 +202,28 @@ struct TranslationPopupView: View {
 
     private var secondarySection: some View {
         VStack(alignment: .leading, spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Array(translationService.customActions.enumerated()), id: \.element.id) { index, action in
+                        let title = action.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ? "Action \(index + 1)"
+                        : action.title
+
+                        Button(title) {
+                            runSecondaryAction(at: index)
+                        }
+                        .buttonStyle(.bordered)
+                        .hoverHighlight()
+                        .disabled(
+                            selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || isSecondaryLoading
+                        )
+                        .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: [.command])
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+
             HStack(spacing: 10) {
                 Text(secondaryTitle)
                     .font(.headline)
@@ -209,45 +247,7 @@ struct TranslationPopupView: View {
                 .disabled(secondaryOutputText.isEmpty || isSecondaryLoading)
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(Array(translationService.customActions.enumerated()), id: \.element.id) { index, action in
-                        let title = action.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        ? "Action \(index + 1)"
-                        : action.title
-
-                        Button(title) {
-                            runSecondaryAction(at: index)
-                        }
-                        .buttonStyle(.bordered)
-                        .hoverHighlight()
-                        .disabled(
-                            selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            || isSecondaryLoading
-                        )
-                        .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: [.command])
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-
-            if isSecondaryLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-            } else {
-                ScrollView {
-                    Text(secondaryOutputText.isEmpty ? "Result will appear here..." : secondaryOutputText)
-                        .font(.body)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .foregroundColor(secondaryOutputText.isEmpty ? .secondary : .primary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(10)
-            }
+            outputView(text: secondaryOutputText, isLoading: isSecondaryLoading, emptyText: "Result will appear here...")
         }
         .frame(minHeight: 0, maxHeight: .infinity)
         .layoutPriority(1)
@@ -300,7 +300,12 @@ struct TranslationPopupView: View {
             return
         }
 
-        let title = action.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Action" : action.title
+        let fallbackTitle: String = {
+            let index = translationService.customActions.firstIndex(where: { $0.id == action.id })
+            let defaultIndex = (target == .primary) ? 0 : 1
+            return "Action \((index ?? defaultIndex) + 1)"
+        }()
+        let title = action.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? fallbackTitle : action.title
         let prompt = action.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedPrompt = prompt.replacingOccurrences(of: "{{targetLanguage}}", with: selectedLanguage)
         let emptyPromptMessage = "Configure the prompt and model for this action in Settings."

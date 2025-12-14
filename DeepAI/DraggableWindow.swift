@@ -4,6 +4,7 @@ class DraggableWindow: NSPanel {
     private var isDragging = false
     private var dragStartMouseLocation: NSPoint = .zero
     private var dragStartWindowOrigin: NSPoint = .zero
+    private let resizeEdgeMargin: CGFloat = 8
 
     override init(
         contentRect: NSRect,
@@ -21,8 +22,14 @@ class DraggableWindow: NSPanel {
     
     override func mouseDown(with event: NSEvent) {
         let location = event.locationInWindow
+        let isNearResizeEdge =
+            location.x <= resizeEdgeMargin
+            || location.x >= (frame.width - resizeEdgeMargin)
+            || location.y <= resizeEdgeMargin
+            || location.y >= (frame.height - resizeEdgeMargin)
+
         // Check whether the click is within the header area (top 50px)
-        if location.y > (frame.height - 50) {
+        if !isNearResizeEdge, location.y > (frame.height - 50) {
             isDragging = true
             dragStartMouseLocation = NSEvent.mouseLocation
             dragStartWindowOrigin = frame.origin
@@ -49,4 +56,3 @@ class DraggableWindow: NSPanel {
         super.mouseUp(with: event)
     }
 }
-

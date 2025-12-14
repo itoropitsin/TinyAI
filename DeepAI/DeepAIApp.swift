@@ -219,11 +219,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Create a draggable window
         let window = DraggableWindow(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 520),
-            styleMask: [NSWindow.StyleMask.borderless, NSWindow.StyleMask.fullSizeContentView, NSWindow.StyleMask.nonactivatingPanel],
+            styleMask: [NSWindow.StyleMask.borderless, NSWindow.StyleMask.fullSizeContentView, NSWindow.StyleMask.nonactivatingPanel, NSWindow.StyleMask.resizable],
             backing: NSWindow.BackingStoreType.buffered,
             defer: false
         )
-        
+
         window.contentView = hostingView
         // Keep the window itself fully transparent so rounded corners don't reveal a halo/border.
         // The actual background is drawn by the SwiftUI content.
@@ -232,6 +232,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.hasShadow = true
         window.level = .floating
         window.isReleasedWhenClosed = false
+        window.minSize = NSSize(width: 360, height: 420)
 
         // Use the correct settings to keep the window on the same desktop.
         // fullScreenAuxiliary allows the window to appear in fullscreen.

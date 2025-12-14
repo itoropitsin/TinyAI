@@ -3,6 +3,20 @@ import SwiftUI
 struct HelpView: View {
     @Environment(\.dismiss) private var dismiss
 
+    private var appVersion: String {
+        let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+
+        if let short, !short.isEmpty {
+            if let build, !build.isEmpty, build != short {
+                return "\(short) (\(build))"
+            }
+            return short
+        }
+
+        return "1.21"
+    }
+
     var body: some View {
         VStack(spacing: 18) {
             Text("Help")
@@ -70,6 +84,10 @@ struct HelpView: View {
             }
 
             HStack {
+                Text("Version \(appVersion)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
                 Spacer()
                 Button("Close") {
                     dismiss()
