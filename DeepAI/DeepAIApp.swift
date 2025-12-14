@@ -208,6 +208,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Create a hosting view with correct sizing
         let hostingView = NSHostingView(rootView: popupView)
         hostingView.frame = NSRect(x: 0, y: 0, width: 420, height: 520)
+        hostingView.autoresizingMask = [.width, .height]
+        hostingView.wantsLayer = true
+        hostingView.layer?.cornerRadius = 14
+        hostingView.layer?.masksToBounds = true
+        if #available(macOS 10.15, *) {
+            hostingView.layer?.cornerCurve = .continuous
+        }
         
         // Create a draggable window
         let window = DraggableWindow(
@@ -218,7 +225,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
         
         window.contentView = hostingView
-        window.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.95)
+        // Keep the window itself fully transparent so rounded corners don't reveal a halo/border.
+        // The actual background is drawn by the SwiftUI content.
+        window.backgroundColor = .clear
         window.isOpaque = false
         window.hasShadow = true
         window.level = .floating

@@ -63,9 +63,7 @@ struct TranslationPopupView: View {
         }
         .padding(16)
         .frame(width: 420, height: 520)
-        .background(Color(NSColor.windowBackgroundColor))
-        .cornerRadius(14)
-        .shadow(radius: 12)
+        .background(Color(NSColor.windowBackgroundColor).opacity(0.95))
         .onAppear {
             keyboardMonitor.isCustomActionHotkeysEnabled = true
             refreshTitles()
