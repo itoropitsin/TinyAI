@@ -1,13 +1,18 @@
 import SwiftUI
+import AppKit
 
 struct SettingsView: View {
     @EnvironmentObject var translationService: TranslationService
+    @EnvironmentObject var keyboardMonitor: KeyboardMonitor
     @Environment(\.dismiss) var dismiss
     @State private var apiKey: String = ""
     @State private var customActions: [CustomAction] = []
     @State private var starredPrimarySelectionKey: String = TranslationService.builtInTranslateSelectionKey
     @State private var starredSecondaryActionId: UUID?
     @State private var builtInTranslateModel: OpenAIModel = .gpt5Mini
+    @State private var popupHotkey: KeyboardShortcut = KeyboardShortcut(keyCode: 8, modifiers: [.command])
+    @State private var popupHotkeyPressMode: PopupHotkeyPressMode = .doublePress
+    @State private var popupHotkeyError: String?
 
     private let settingsLabelColumnWidth: CGFloat = 130
     private let settingsControlColumnWidth: CGFloat = 240
@@ -34,6 +39,75 @@ struct SettingsView: View {
 
                         Link("Get an API key", destination: URL(string: "https://platform.openai.com/api-keys")!)
                             .font(.caption)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Hotkeys")
+                            .font(.headline)
+
+                        HStack(alignment: .center, spacing: 12) {
+                            Text("Popup")
+                                .foregroundColor(.secondary)
+                                .frame(width: settingsLabelColumnWidth, alignment: .leading)
+
+                            KeyboardShortcutRecorder(
+                                shortcut: popupHotkey,
+                                isInvalid: popupHotkeyError != nil,
+                                width: settingsControlColumnWidth
+                            ) { candidate in
+                                if let error = keyboardMonitor.validatePopupHotkey(candidate, pressMode: popupHotkeyPressMode) {
+                                    popupHotkeyError = error
+                                    return
+                                }
+                                popupHotkey = candidate
+                                popupHotkeyError = nil
+                            }
+                        }
+                        .padding(.vertical, 2)
+                        .hoverRowHighlight()
+
+                        HStack(alignment: .center, spacing: 12) {
+                            Text("Trigger")
+                                .foregroundColor(.secondary)
+                                .frame(width: settingsLabelColumnWidth, alignment: .leading)
+
+                            Picker("", selection: Binding(
+                                get: { popupHotkeyPressMode },
+                                set: { newMode in
+                                    if let error = keyboardMonitor.validatePopupHotkey(popupHotkey, pressMode: newMode) {
+                                        popupHotkeyError = error
+                                        return
+                                    }
+                                    popupHotkeyPressMode = newMode
+                                    popupHotkeyError = nil
+                                }
+                            )) {
+                                ForEach(PopupHotkeyPressMode.allCases) { mode in
+                                    Text(mode.displayName).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .frame(width: settingsControlColumnWidth)
+                        }
+                        .padding(.vertical, 2)
+                        .hoverRowHighlight()
+
+                        HStack(alignment: .top, spacing: 12) {
+                            Color.clear
+                                .frame(width: settingsLabelColumnWidth, height: 1)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Note: ⌘1, ⌘2, ⌘3, … are static shortcuts and can’t be reassigned.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+
+                                if let popupHotkeyError {
+                                    Text(popupHotkeyError)
+                                        .font(.caption)
+                                        .foregroundColor(.red)
+                                }
+                            }
+                            .frame(width: settingsControlColumnWidth, alignment: .leading)
+                        }
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
@@ -168,6 +242,12 @@ struct SettingsView: View {
                     translationService.saveStarredPrimarySelectionKey(starredPrimarySelectionKey)
                     translationService.saveBuiltInTranslateModel(builtInTranslateModel)
                     translationService.saveStarredSecondaryActionId(starredSecondaryActionId)
+
+                    if let error = keyboardMonitor.applyPopupHotkeySettings(shortcut: popupHotkey, pressMode: popupHotkeyPressMode) {
+                        popupHotkeyError = error
+                        return
+                    }
+
                     dismiss()
                 }
                 .hoverHighlight()
@@ -188,7 +268,118 @@ struct SettingsView: View {
             starredPrimarySelectionKey = translationService.starredPrimarySelectionKey
             starredSecondaryActionId = translationService.starredSecondaryActionId
             builtInTranslateModel = translationService.builtInTranslateModel
+            popupHotkey = keyboardMonitor.popupHotkey
+            popupHotkeyPressMode = keyboardMonitor.popupHotkeyPressMode
+            popupHotkeyError = nil
         }
     }
 }
 
+private struct KeyboardShortcutRecorder: View {
+    let shortcut: KeyboardShortcut
+    let isInvalid: Bool
+    let width: CGFloat
+    let onCaptured: (KeyboardShortcut) -> Void
+
+    @State private var isRecording: Bool = false
+
+    var body: some View {
+        Button {
+            isRecording = true
+        } label: {
+            HStack(spacing: 8) {
+                Text(isRecording ? "Press shortcut…" : shortcut.displayString)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: 0)
+                Text("Change")
+                    .foregroundColor(.secondary)
+                    .font(.caption)
+            }
+            .padding(.vertical, 7)
+            .padding(.horizontal, 10)
+            .frame(width: width, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color(NSColor.controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(isInvalid ? Color.red : Color(NSColor.separatorColor), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .hoverHighlight()
+        .background(
+            KeyCaptureViewRepresentable(isRecording: $isRecording) { keyCode, modifiers in
+                let candidate = KeyboardShortcut(keyCode: Int64(keyCode), modifiers: modifiers)
+                onCaptured(candidate)
+            }
+            .frame(width: 0, height: 0)
+        )
+    }
+}
+
+private struct KeyCaptureViewRepresentable: NSViewRepresentable {
+    @Binding var isRecording: Bool
+    let onCapture: (UInt16, ShortcutModifiers) -> Void
+
+    func makeNSView(context: Context) -> KeyCaptureView {
+        let view = KeyCaptureView()
+        view.onCapture = { keyCode, modifiers in
+            onCapture(keyCode, modifiers)
+            DispatchQueue.main.async {
+                isRecording = false
+            }
+        }
+        view.onCancel = {
+            DispatchQueue.main.async {
+                isRecording = false
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: KeyCaptureView, context: Context) {
+        nsView.isRecording = isRecording
+        if isRecording {
+            DispatchQueue.main.async {
+                nsView.window?.makeFirstResponder(nsView)
+            }
+        }
+    }
+}
+
+private final class KeyCaptureView: NSView {
+    var onCapture: ((UInt16, ShortcutModifiers) -> Void)?
+    var onCancel: (() -> Void)?
+    var isRecording: Bool = false
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        guard isRecording else {
+            super.keyDown(with: event)
+            return
+        }
+
+        if event.keyCode == 53 { // Escape
+            onCancel?()
+            return
+        }
+
+        let ignoredKeyCodes: Set<UInt16> = [
+            54, 55, // ⌘
+            56, 60, // ⇧
+            58, 61, // ⌥
+            59, 62  // ⌃
+        ]
+        if ignoredKeyCodes.contains(event.keyCode) {
+            return
+        }
+
+        let modifiers = ShortcutModifiers(modifierFlags: event.modifierFlags)
+        onCapture?(event.keyCode, modifiers)
+    }
+}

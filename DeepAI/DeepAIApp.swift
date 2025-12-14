@@ -17,7 +17,7 @@ struct DeepAIApp: App {
                 .onAppear {
                     appDelegate.translationService = translationService
                     appDelegate.keyboardMonitor = keyboardMonitor
-                    keyboardMonitor.onDoubleCommandC = { [weak appDelegate] payload in
+                    keyboardMonitor.onPopupHotkey = { [weak appDelegate] payload in
                         appDelegate?.showTranslationPopup(with: payload)
                     }
                 }

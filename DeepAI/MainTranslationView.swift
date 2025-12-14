@@ -8,6 +8,7 @@ struct MainTranslationView: View {
     @State private var secondaryOutputText: String = ""
     @State private var selectedLanguage: String = "English"
     @State private var showSettings: Bool = false
+    @State private var showHelp: Bool = false
     @State private var processingTask: DispatchWorkItem?
     @State private var isPrimaryLoading: Bool = false
     @State private var isSecondaryLoading: Bool = false
@@ -99,13 +100,20 @@ struct MainTranslationView: View {
             .frame(minWidth: 340)
         }
         .toolbar {
-            ToolbarItem(placement: .automatic) {
+            ToolbarItemGroup(placement: .automatic) {
                 Button(action: { showSettings = true }) {
                     Image(systemName: "gearshape")
                         .hoverToolbarIcon()
                 }
                 .buttonStyle(.plain)
                 .help("Settings")
+
+                Button(action: { showHelp = true }) {
+                    Image(systemName: "questionmark.circle")
+                        .hoverToolbarIcon()
+                }
+                .buttonStyle(.plain)
+                .help("Help")
             }
         }
         .onAppear {
@@ -140,6 +148,9 @@ struct MainTranslationView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView()
                 .environmentObject(translationService)
+        }
+        .sheet(isPresented: $showHelp) {
+            HelpView()
         }
         .alert("Error", isPresented: Binding(
             get: { translationService.errorMessage != nil },

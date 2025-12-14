@@ -4,12 +4,115 @@ import ApplicationServices
 import Combine
 import os
 
+enum PopupHotkeyPressMode: String, CaseIterable, Identifiable {
+    case singlePress
+    case doublePress
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .singlePress:
+            return "Single press"
+        case .doublePress:
+            return "Double press"
+        }
+    }
+}
+
+struct ShortcutModifiers: OptionSet, Equatable {
+    let rawValue: Int
+
+    static let command = ShortcutModifiers(rawValue: 1 << 0)
+    static let shift = ShortcutModifiers(rawValue: 1 << 1)
+    static let option = ShortcutModifiers(rawValue: 1 << 2)
+    static let control = ShortcutModifiers(rawValue: 1 << 3)
+
+    init(rawValue: Int) {
+        self.rawValue = rawValue
+    }
+
+    init(eventFlags: CGEventFlags) {
+        var result: ShortcutModifiers = []
+        if eventFlags.contains(.maskCommand) { result.insert(.command) }
+        if eventFlags.contains(.maskShift) { result.insert(.shift) }
+        if eventFlags.contains(.maskAlternate) { result.insert(.option) }
+        if eventFlags.contains(.maskControl) { result.insert(.control) }
+        self = result
+    }
+
+    init(modifierFlags: NSEvent.ModifierFlags) {
+        var result: ShortcutModifiers = []
+        if modifierFlags.contains(.command) { result.insert(.command) }
+        if modifierFlags.contains(.shift) { result.insert(.shift) }
+        if modifierFlags.contains(.option) { result.insert(.option) }
+        if modifierFlags.contains(.control) { result.insert(.control) }
+        self = result
+    }
+
+    var cgEventFlags: CGEventFlags {
+        var flags: CGEventFlags = []
+        if contains(.command) { flags.insert(.maskCommand) }
+        if contains(.shift) { flags.insert(.maskShift) }
+        if contains(.option) { flags.insert(.maskAlternate) }
+        if contains(.control) { flags.insert(.maskControl) }
+        return flags
+    }
+
+    var displaySymbols: String {
+        var parts: [String] = []
+        if contains(.control) { parts.append("⌃") }
+        if contains(.option) { parts.append("⌥") }
+        if contains(.shift) { parts.append("⇧") }
+        if contains(.command) { parts.append("⌘") }
+        return parts.joined()
+    }
+}
+
+struct KeyboardShortcut: Equatable {
+    var keyCode: Int64
+    var modifiers: ShortcutModifiers
+
+    var displayString: String {
+        "\(modifiers.displaySymbols)\(KeyboardShortcut.displayKey(for: keyCode))"
+    }
+
+    private static func displayKey(for keyCode: Int64) -> String {
+        switch keyCode {
+        case 36: return "↩︎"
+        case 48: return "⇥"
+        case 49: return "Space"
+        case 51: return "⌫"
+        case 53: return "⎋"
+        case 123: return "←"
+        case 124: return "→"
+        case 125: return "↓"
+        case 126: return "↑"
+        default:
+            break
+        }
+
+        let table: [Int64: String] = [
+            0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X", 8: "C", 9: "V",
+            11: "B", 12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T", 18: "1", 19: "2",
+            20: "3", 21: "4", 22: "6", 23: "5", 24: "=", 25: "9", 26: "7", 27: "-", 28: "8",
+            29: "0", 30: "]", 31: "O", 32: "U", 33: "[", 34: "I", 35: "P", 37: "L", 38: "J",
+            39: "'", 40: "K", 41: ";", 42: "\\", 43: ",", 44: "/", 45: "N", 46: "M", 47: ".",
+            50: "`"
+        ]
+
+        return table[keyCode] ?? "Key \(keyCode)"
+    }
+}
+
 class KeyboardMonitor: ObservableObject {
-    var onDoubleCommandC: ((RichTextPayload) -> Void)?
+    var onPopupHotkey: ((RichTextPayload) -> Void)?
     @Published var isCustomActionHotkeysEnabled: Bool = false
     @Published var customActionHotkey: Int?
+    @Published var popupHotkey: KeyboardShortcut
+    @Published var popupHotkeyPressMode: PopupHotkeyPressMode
     
-    private var lastCommandCPressTime: Date?
+    private var lastPopupHotkeyPressTime: Date?
     private let doublePressInterval: TimeInterval = 0.5
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -19,6 +122,11 @@ class KeyboardMonitor: ObservableObject {
     private var setupRetryCount: Int = 0
     private let setupRetryLimit: Int = 10
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "DeepAI", category: "KeyboardMonitor")
+
+    private let popupHotkeyKeyCodeDefaultsKey = "PopupHotkeyKeyCodeV1"
+    private let popupHotkeyModifiersDefaultsKey = "PopupHotkeyModifiersV1"
+    private let popupHotkeyPressModeDefaultsKey = "PopupHotkeyPressModeV1"
+
     private static let customActionKeyCodeToIndex: [Int64: Int] = [
         18: 1, // 1
         19: 2, // 2
@@ -28,13 +136,87 @@ class KeyboardMonitor: ObservableObject {
     ]
     
     init() {
+        let defaults = UserDefaults.standard
+        let savedKeyCode = defaults.object(forKey: popupHotkeyKeyCodeDefaultsKey) as? Int64
+        let savedModifiers = defaults.object(forKey: popupHotkeyModifiersDefaultsKey) as? Int
+        let savedPressModeRaw = defaults.string(forKey: popupHotkeyPressModeDefaultsKey)
+
+        let defaultHotkey = KeyboardShortcut(keyCode: 8, modifiers: [.command]) // ⌘C
+        popupHotkey = KeyboardShortcut(
+            keyCode: savedKeyCode ?? defaultHotkey.keyCode,
+            modifiers: ShortcutModifiers(rawValue: savedModifiers ?? defaultHotkey.modifiers.rawValue)
+        )
+        popupHotkeyPressMode = PopupHotkeyPressMode(rawValue: savedPressModeRaw ?? "") ?? .doublePress
+
+        if savedKeyCode == nil || savedModifiers == nil {
+            defaults.set(popupHotkey.keyCode, forKey: popupHotkeyKeyCodeDefaultsKey)
+            defaults.set(popupHotkey.modifiers.rawValue, forKey: popupHotkeyModifiersDefaultsKey)
+        }
+        if savedPressModeRaw == nil {
+            defaults.set(popupHotkeyPressMode.rawValue, forKey: popupHotkeyPressModeDefaultsKey)
+        }
+
         setupGlobalHotkey()
     }
     
     deinit {
         stopMonitoring()
     }
-    
+
+    func validatePopupHotkey(_ shortcut: KeyboardShortcut, pressMode: PopupHotkeyPressMode) -> String? {
+        guard shortcut.modifiers.contains(.command) else {
+            return "Shortcut must include ⌘ (Command)."
+        }
+
+        let reservedDigitKeyCodes: Set<Int64> = [18, 19, 20, 21, 22, 23, 25, 26, 28, 29]
+        if reservedDigitKeyCodes.contains(shortcut.keyCode) && shortcut.modifiers.contains(.command) {
+            return "⌘1, ⌘2, ⌘3, … are static shortcuts and can’t be reassigned."
+        }
+
+        // Always-reserved system-level shortcuts.
+        if shortcut.modifiers == [.command] && shortcut.keyCode == 49 { // ⌘Space
+            return "⌘Space is reserved by the system."
+        }
+        if shortcut.modifiers == [.command] && shortcut.keyCode == 48 { // ⌘Tab
+            return "⌘Tab is reserved by the system."
+        }
+
+        // Common system/app editing shortcuts: disallow for single-press so we don’t override them.
+        if pressMode == .singlePress && shortcut.modifiers == [.command] {
+            let reservedSinglePress: Set<Int64> = [
+                0,  // A
+                6,  // Z
+                7,  // X
+                8,  // C
+                9,  // V
+                1,  // S
+                12, // Q
+                13, // W
+                50  // `
+            ]
+            if reservedSinglePress.contains(shortcut.keyCode) {
+                return "This shortcut already has a system-defined action (Copy/Paste/Undo/etc)."
+            }
+        }
+
+        return nil
+    }
+
+    func applyPopupHotkeySettings(shortcut: KeyboardShortcut, pressMode: PopupHotkeyPressMode) -> String? {
+        if let error = validatePopupHotkey(shortcut, pressMode: pressMode) {
+            return error
+        }
+
+        popupHotkey = shortcut
+        popupHotkeyPressMode = pressMode
+
+        let defaults = UserDefaults.standard
+        defaults.set(shortcut.keyCode, forKey: popupHotkeyKeyCodeDefaultsKey)
+        defaults.set(shortcut.modifiers.rawValue, forKey: popupHotkeyModifiersDefaultsKey)
+        defaults.set(pressMode.rawValue, forKey: popupHotkeyPressModeDefaultsKey)
+        return nil
+    }
+
     private func setupGlobalHotkey() {
         let eventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
         
@@ -114,43 +296,50 @@ class KeyboardMonitor: ObservableObject {
                 }
             }
             
-            // Detect Command-C
-            if keyCode == 8 && flags.contains(.maskCommand) { // 8 = C key
+            let observedModifiers = ShortcutModifiers(eventFlags: flags)
+            if keyCode == popupHotkey.keyCode && observedModifiers == popupHotkey.modifiers {
                 let now = Date()
-                
-                if let lastPress = lastCommandCPressTime,
-                   now.timeIntervalSince(lastPress) < doublePressInterval {
-                    // Double press detected
-                    // Check if a request is already being processed
+                switch popupHotkeyPressMode {
+                case .singlePress:
                     if !isProcessing {
                         isProcessing = true
-                        // Execute on the main thread
                         DispatchQueue.main.async { [weak self] in
-                            self?.handleDoubleCommandC()
+                            self?.handlePopupHotkeyTriggered()
                         }
                     }
-                    // Swallow the event so it doesn't copy
                     return nil
+                case .doublePress:
+                    if let lastPress = lastPopupHotkeyPressTime,
+                       now.timeIntervalSince(lastPress) < doublePressInterval {
+                        if !isProcessing {
+                            isProcessing = true
+                            DispatchQueue.main.async { [weak self] in
+                                self?.handlePopupHotkeyTriggered()
+                            }
+                        }
+                        return nil
+                    }
+
+                    lastPopupHotkeyPressTime = now
+                    return Unmanaged.passUnretained(event)
                 }
-                
-                lastCommandCPressTime = now
             }
         }
         
         return Unmanaged.passUnretained(event)
     }
     
-    private func handleDoubleCommandC() {
+    private func handlePopupHotkeyTriggered() {
         // Ensure we are on the main thread
         guard Thread.isMainThread else {
             DispatchQueue.main.async { [weak self] in
-                self?.handleDoubleCommandC()
+                self?.handlePopupHotkeyTriggered()
             }
             return
         }
         
         if let payload = getSelectedRichText(), !payload.plain.isEmpty {
-            onDoubleCommandC?(payload)
+            onPopupHotkey?(payload)
             // Reset the flag after a short delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.isProcessing = false
@@ -175,7 +364,7 @@ class KeyboardMonitor: ObservableObject {
                 let payload = RichTextPasteboard.read(from: pasteboard)
                 if let payload, !payload.plain.isEmpty {
                     DispatchQueue.main.async {
-                        self.onDoubleCommandC?(payload)
+                        self.onPopupHotkey?(payload)
                     }
                 }
                 // Restore previous pasteboard contents

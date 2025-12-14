@@ -12,6 +12,7 @@
 			2C2167442EEC73E1004A2529 /* DeepAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21672F2EEC73E1004A2529 /* DeepAIApp.swift */; };
 			2C2167462EEC73E1004A2529 /* TranslationPopupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */; };
 			2C2167492EEC73E1004A2529 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167332EEC73E1004A2529 /* SettingsView.swift */; };
+			E9DD64F3420B4975E1756459 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9B71849304D48C2CCAC60D0 /* HelpView.swift */; };
 			2C21674A2EEC73E1004A2529 /* TranslationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167352EEC73E1004A2529 /* TranslationService.swift */; };
 			2C2167732F0A1234004A2529 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167722F0A1234004A2529 /* KeychainStore.swift */; };
 			2C2167522EEC73E1004A2529 /* DraggableWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167512EEC73E1004A2529 /* DraggableWindow.swift */; };
@@ -47,6 +48,7 @@
 		2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardMonitor.swift; sourceTree = "<group>"; };
 		2C2167322EEC73E1004A2529 /* MainTranslationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTranslationView.swift; sourceTree = "<group>"; };
 		2C2167332EEC73E1004A2529 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		D9B71849304D48C2CCAC60D0 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 			2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationPopupView.swift; sourceTree = "<group>"; };
 			2C2167352EEC73E1004A2529 /* TranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationService.swift; sourceTree = "<group>"; };
 			2C2167722F0A1234004A2529 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 					2C2167722F0A1234004A2529 /* KeychainStore.swift */,
 					2C21675F2F0A0000004A2529 /* RichTextPayload.swift */,
 					2C2167332EEC73E1004A2529 /* SettingsView.swift */,
+					D9B71849304D48C2CCAC60D0 /* HelpView.swift */,
 					2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */,
 					2C2167352EEC73E1004A2529 /* TranslationService.swift */,
 					2C2167512EEC73E1004A2529 /* DraggableWindow.swift */,
@@ -279,6 +282,7 @@
 					2C2167442EEC73E1004A2529 /* DeepAIApp.swift in Sources */,
 					2C2167462EEC73E1004A2529 /* TranslationPopupView.swift in Sources */,
 					2C2167492EEC73E1004A2529 /* SettingsView.swift in Sources */,
+					E9DD64F3420B4975E1756459 /* HelpView.swift in Sources */,
 					2C21674A2EEC73E1004A2529 /* TranslationService.swift in Sources */,
 					2C2167732F0A1234004A2529 /* KeychainStore.swift in Sources */,
 					2C2167602F0A0000004A2529 /* RichTextPayload.swift in Sources */,
