@@ -103,7 +103,7 @@ class TranslationService: ObservableObject {
     private let builtInTranslateModelDefaultsKey = "BuiltInTranslateModelV1"
     
     init() {
-        keychainService = Bundle.main.bundleIdentifier ?? "DeepAI"
+        keychainService = Bundle.main.bundleIdentifier ?? "TinyAI"
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 60

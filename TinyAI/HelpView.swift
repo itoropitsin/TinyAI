@@ -25,9 +25,9 @@ struct HelpView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    GroupBox("What DeepAI does") {
+                    GroupBox("What TinyAI does") {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("DeepAI is a small macOS utility that sends your text to OpenAI and shows the result in two panels:")
+                            Text("TinyAI is a small macOS utility that sends your text to OpenAI and shows the result in two panels:")
                             Text("• Starred 1: your primary action (for example, “Translate”).")
                             Text("• Starred 2: a custom action you choose (plus extra buttons to run other custom actions).")
                         }

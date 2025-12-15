@@ -2,10 +2,10 @@
 
 ## Option 1: Use the provided SVG (recommended)
 
-1. Open `DeepAI/icon_template.svg` in any editor (for example, a browser or Figma)
+1. Open `TinyAI/icon_template.svg` in any editor (for example, a browser or Figma)
 2. Export PNG files in the following sizes:
    - 16x16, 32x32, 64x64, 128x128, 256x256, 512x512, 1024x1024
-3. Save them into `DeepAI/Assets.xcassets/AppIcon.appiconset/` with these names:
+3. Save them into `TinyAI/Assets.xcassets/AppIcon.appiconset/` with these names:
    - `icon_16x16.png` (16x16)
    - `icon_16x16@2x.png` (32x32)
    - `icon_32x32.png` (32x32)
@@ -22,14 +22,14 @@
 If you have ImageMagick installed:
 
 ```bash
-cd DeepAI
+cd TinyAI
 ./create_icon.sh
 ```
 
 If ImageMagick is not installed:
 ```bash
 brew install imagemagick
-cd DeepAI
+cd TinyAI
 ./create_icon.sh
 ```
 

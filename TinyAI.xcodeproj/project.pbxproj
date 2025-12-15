@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		2C2167412EEC73E1004A2529 /* KeyboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */; };
 		2C2167422EEC73E1004A2529 /* MainTranslationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167322EEC73E1004A2529 /* MainTranslationView.swift */; };
-		2C2167442EEC73E1004A2529 /* DeepAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21672F2EEC73E1004A2529 /* DeepAIApp.swift */; };
+		2C2167442EEC73E1004A2529 /* TinyAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21672F2EEC73E1004A2529 /* TinyAIApp.swift */; };
 		2C2167462EEC73E1004A2529 /* TranslationPopupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */; };
 		2C2167492EEC73E1004A2529 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167332EEC73E1004A2529 /* SettingsView.swift */; };
 		2C21674A2EEC73E1004A2529 /* TranslationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167352EEC73E1004A2529 /* TranslationService.swift */; };
@@ -26,33 +26,33 @@
 			containerPortal = 2C2166EC2EEC7398004A2529 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 2C2166F32EEC7398004A2529;
-			remoteInfo = DeepAI;
+			remoteInfo = TinyAI;
 		};
 		2C21670C2EEC7399004A2529 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 2C2166EC2EEC7398004A2529 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 2C2166F32EEC7398004A2529;
-			remoteInfo = DeepAI;
+			remoteInfo = TinyAI;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		2C2166F42EEC7398004A2529 /* DeepAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeepAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		2C2167012EEC7399004A2529 /* DeepAITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeepAITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		2C21670B2EEC7399004A2529 /* DeepAIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeepAIUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2C2166F42EEC7398004A2529 /* TinyAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TinyAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2C2167012EEC7399004A2529 /* TinyAITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TinyAITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2C21670B2EEC7399004A2529 /* TinyAIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TinyAIUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2C21672D2EEC73E1004A2529 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		2C21672E2EEC73E1004A2529 /* DeepAI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DeepAI.entitlements; sourceTree = "<group>"; };
-		2C21672F2EEC73E1004A2529 /* DeepAIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepAIApp.swift; sourceTree = "<group>"; };
+		2C21672E2EEC73E1004A2529 /* TinyAI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TinyAI.entitlements; sourceTree = "<group>"; };
+		2C21672F2EEC73E1004A2529 /* TinyAIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinyAIApp.swift; sourceTree = "<group>"; };
 		2C2167302EEC73E1004A2529 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardMonitor.swift; sourceTree = "<group>"; };
 		2C2167322EEC73E1004A2529 /* MainTranslationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTranslationView.swift; sourceTree = "<group>"; };
 		2C2167332EEC73E1004A2529 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationPopupView.swift; sourceTree = "<group>"; };
 		2C2167352EEC73E1004A2529 /* TranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationService.swift; sourceTree = "<group>"; };
-		2C2167382EEC73E1004A2529 /* DeepAITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepAITests.swift; sourceTree = "<group>"; };
-		2C21673A2EEC73E1004A2529 /* DeepAIUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepAIUITests.swift; sourceTree = "<group>"; };
-		2C21673B2EEC73E1004A2529 /* DeepAIUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepAIUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		2C2167382EEC73E1004A2529 /* TinyAITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinyAITests.swift; sourceTree = "<group>"; };
+		2C21673A2EEC73E1004A2529 /* TinyAIUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinyAIUITests.swift; sourceTree = "<group>"; };
+		2C21673B2EEC73E1004A2529 /* TinyAIUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinyAIUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		2C2167512EEC73E1004A2529 /* DraggableWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraggableWindow.swift; sourceTree = "<group>"; };
 		2C21675F2F0A0000004A2529 /* RichTextPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextPayload.swift; sourceTree = "<group>"; };
 		2C2167722F0A1234004A2529 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
@@ -87,9 +87,9 @@
 		2C2166EB2EEC7398004A2529 = {
 			isa = PBXGroup;
 			children = (
-				2C2167362EEC73E1004A2529 /* DeepAI */,
-				2C2167392EEC73E1004A2529 /* DeepAITests */,
-				2C21673C2EEC73E1004A2529 /* DeepAIUITests */,
+				2C2167362EEC73E1004A2529 /* TinyAI */,
+				2C2167392EEC73E1004A2529 /* TinyAITests */,
+				2C21673C2EEC73E1004A2529 /* TinyAIUITests */,
 				2C2166F52EEC7398004A2529 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -97,19 +97,19 @@
 		2C2166F52EEC7398004A2529 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				2C2166F42EEC7398004A2529 /* DeepAI.app */,
-				2C2167012EEC7399004A2529 /* DeepAITests.xctest */,
-				2C21670B2EEC7399004A2529 /* DeepAIUITests.xctest */,
+				2C2166F42EEC7398004A2529 /* TinyAI.app */,
+				2C2167012EEC7399004A2529 /* TinyAITests.xctest */,
+				2C21670B2EEC7399004A2529 /* TinyAIUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		2C2167362EEC73E1004A2529 /* DeepAI */ = {
+		2C2167362EEC73E1004A2529 /* TinyAI */ = {
 			isa = PBXGroup;
 			children = (
 				2C21672D2EEC73E1004A2529 /* Assets.xcassets */,
-				2C21672E2EEC73E1004A2529 /* DeepAI.entitlements */,
-				2C21672F2EEC73E1004A2529 /* DeepAIApp.swift */,
+				2C21672E2EEC73E1004A2529 /* TinyAI.entitlements */,
+				2C21672F2EEC73E1004A2529 /* TinyAIApp.swift */,
 				2C2167302EEC73E1004A2529 /* Info.plist */,
 				2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */,
 				2C2167322EEC73E1004A2529 /* MainTranslationView.swift */,
@@ -121,32 +121,32 @@
 				2C2167352EEC73E1004A2529 /* TranslationService.swift */,
 				2C2167512EEC73E1004A2529 /* DraggableWindow.swift */,
 			);
-			path = DeepAI;
+			path = TinyAI;
 			sourceTree = "<group>";
 		};
-		2C2167392EEC73E1004A2529 /* DeepAITests */ = {
+		2C2167392EEC73E1004A2529 /* TinyAITests */ = {
 			isa = PBXGroup;
 			children = (
-				2C2167382EEC73E1004A2529 /* DeepAITests.swift */,
+				2C2167382EEC73E1004A2529 /* TinyAITests.swift */,
 			);
-			path = DeepAITests;
+			path = TinyAITests;
 			sourceTree = "<group>";
 		};
-		2C21673C2EEC73E1004A2529 /* DeepAIUITests */ = {
+		2C21673C2EEC73E1004A2529 /* TinyAIUITests */ = {
 			isa = PBXGroup;
 			children = (
-				2C21673A2EEC73E1004A2529 /* DeepAIUITests.swift */,
-				2C21673B2EEC73E1004A2529 /* DeepAIUITestsLaunchTests.swift */,
+				2C21673A2EEC73E1004A2529 /* TinyAIUITests.swift */,
+				2C21673B2EEC73E1004A2529 /* TinyAIUITestsLaunchTests.swift */,
 			);
-			path = DeepAIUITests;
+			path = TinyAIUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		2C2166F32EEC7398004A2529 /* DeepAI */ = {
+		2C2166F32EEC7398004A2529 /* TinyAI */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 2C2167152EEC7399004A2529 /* Build configuration list for PBXNativeTarget "DeepAI" */;
+			buildConfigurationList = 2C2167152EEC7399004A2529 /* Build configuration list for PBXNativeTarget "TinyAI" */;
 			buildPhases = (
 				2C2166F02EEC7398004A2529 /* Sources */,
 				2C2166F12EEC7398004A2529 /* Frameworks */,
@@ -156,16 +156,16 @@
 			);
 			dependencies = (
 			);
-			name = DeepAI;
+			name = TinyAI;
 			packageProductDependencies = (
 			);
-			productName = DeepAI;
-			productReference = 2C2166F42EEC7398004A2529 /* DeepAI.app */;
+			productName = TinyAI;
+			productReference = 2C2166F42EEC7398004A2529 /* TinyAI.app */;
 			productType = "com.apple.product-type.application";
 		};
-		2C2167002EEC7399004A2529 /* DeepAITests */ = {
+		2C2167002EEC7399004A2529 /* TinyAITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 2C2167182EEC7399004A2529 /* Build configuration list for PBXNativeTarget "DeepAITests" */;
+			buildConfigurationList = 2C2167182EEC7399004A2529 /* Build configuration list for PBXNativeTarget "TinyAITests" */;
 			buildPhases = (
 				2C2166FD2EEC7399004A2529 /* Sources */,
 				2C2166FE2EEC7399004A2529 /* Frameworks */,
@@ -176,16 +176,16 @@
 			dependencies = (
 				2C2167032EEC7399004A2529 /* PBXTargetDependency */,
 			);
-			name = DeepAITests;
+			name = TinyAITests;
 			packageProductDependencies = (
 			);
-			productName = DeepAITests;
-			productReference = 2C2167012EEC7399004A2529 /* DeepAITests.xctest */;
+			productName = TinyAITests;
+			productReference = 2C2167012EEC7399004A2529 /* TinyAITests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		2C21670A2EEC7399004A2529 /* DeepAIUITests */ = {
+		2C21670A2EEC7399004A2529 /* TinyAIUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 2C21671B2EEC7399004A2529 /* Build configuration list for PBXNativeTarget "DeepAIUITests" */;
+			buildConfigurationList = 2C21671B2EEC7399004A2529 /* Build configuration list for PBXNativeTarget "TinyAIUITests" */;
 			buildPhases = (
 				2C2167072EEC7399004A2529 /* Sources */,
 				2C2167082EEC7399004A2529 /* Frameworks */,
@@ -196,11 +196,11 @@
 			dependencies = (
 				2C21670D2EEC7399004A2529 /* PBXTargetDependency */,
 			);
-			name = DeepAIUITests;
+			name = TinyAIUITests;
 			packageProductDependencies = (
 			);
-			productName = DeepAIUITests;
-			productReference = 2C21670B2EEC7399004A2529 /* DeepAIUITests.xctest */;
+			productName = TinyAIUITests;
+			productReference = 2C21670B2EEC7399004A2529 /* TinyAIUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -226,7 +226,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 2C2166EF2EEC7398004A2529 /* Build configuration list for PBXProject "DeepAI" */;
+			buildConfigurationList = 2C2166EF2EEC7398004A2529 /* Build configuration list for PBXProject "TinyAI" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -240,9 +240,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				2C2166F32EEC7398004A2529 /* DeepAI */,
-				2C2167002EEC7399004A2529 /* DeepAITests */,
-				2C21670A2EEC7399004A2529 /* DeepAIUITests */,
+				2C2166F32EEC7398004A2529 /* TinyAI */,
+				2C2167002EEC7399004A2529 /* TinyAITests */,
+				2C21670A2EEC7399004A2529 /* TinyAIUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -279,7 +279,7 @@
 			files = (
 				2C2167412EEC73E1004A2529 /* KeyboardMonitor.swift in Sources */,
 				2C2167422EEC73E1004A2529 /* MainTranslationView.swift in Sources */,
-				2C2167442EEC73E1004A2529 /* DeepAIApp.swift in Sources */,
+				2C2167442EEC73E1004A2529 /* TinyAIApp.swift in Sources */,
 				2C2167462EEC73E1004A2529 /* TranslationPopupView.swift in Sources */,
 				2C2167492EEC73E1004A2529 /* SettingsView.swift in Sources */,
 				E9DD64F3420B4975E1756459 /* HelpView.swift in Sources */,
@@ -309,12 +309,12 @@
 /* Begin PBXTargetDependency section */
 		2C2167032EEC7399004A2529 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 2C2166F32EEC7398004A2529 /* DeepAI */;
+			target = 2C2166F32EEC7398004A2529 /* TinyAI */;
 			targetProxy = 2C2167022EEC7399004A2529 /* PBXContainerItemProxy */;
 		};
 		2C21670D2EEC7399004A2529 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 2C2166F32EEC7398004A2529 /* DeepAI */;
+			target = 2C2166F32EEC7398004A2529 /* TinyAI */;
 			targetProxy = 2C21670C2EEC7399004A2529 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -447,7 +447,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = DeepAI/DeepAI.entitlements;
+				CODE_SIGN_ENTITLEMENTS = TinyAI/TinyAI.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 58;
@@ -457,15 +457,15 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = DeepAI/Info.plist;
+				INFOPLIST_FILE = TinyAI/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
-				MARKETING_VERSION = 1.22;
-				PRODUCT_BUNDLE_IDENTIFIER = IT.DeepAI;
+				MARKETING_VERSION = 1.23;
+				PRODUCT_BUNDLE_IDENTIFIER = IT.TinyAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -481,7 +481,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = DeepAI/DeepAI.entitlements;
+				CODE_SIGN_ENTITLEMENTS = TinyAI/TinyAI.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 58;
@@ -491,15 +491,15 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = DeepAI/Info.plist;
+				INFOPLIST_FILE = TinyAI/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
-				MARKETING_VERSION = 1.22;
-				PRODUCT_BUNDLE_IDENTIFIER = IT.DeepAI;
+				MARKETING_VERSION = 1.23;
+				PRODUCT_BUNDLE_IDENTIFIER = IT.TinyAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -521,14 +521,14 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.5;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = IT.DeepAITests;
+				PRODUCT_BUNDLE_IDENTIFIER = IT.TinyAITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DeepAI.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DeepAI";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TinyAI.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TinyAI";
 			};
 			name = Debug;
 		};
@@ -542,14 +542,14 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.5;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = IT.DeepAITests;
+				PRODUCT_BUNDLE_IDENTIFIER = IT.TinyAITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DeepAI.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DeepAI";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TinyAI.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TinyAI";
 			};
 			name = Release;
 		};
@@ -561,14 +561,14 @@
 				DEVELOPMENT_TEAM = Y29LYS5D8M;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = IT.DeepAIUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = IT.TinyAIUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = DeepAI;
+				TEST_TARGET_NAME = TinyAI;
 			};
 			name = Debug;
 		};
@@ -580,21 +580,21 @@
 				DEVELOPMENT_TEAM = Y29LYS5D8M;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = IT.DeepAIUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = IT.TinyAIUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = DeepAI;
+				TEST_TARGET_NAME = TinyAI;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		2C2166EF2EEC7398004A2529 /* Build configuration list for PBXProject "DeepAI" */ = {
+		2C2166EF2EEC7398004A2529 /* Build configuration list for PBXProject "TinyAI" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				2C2167132EEC7399004A2529 /* Debug */,
@@ -603,7 +603,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2C2167152EEC7399004A2529 /* Build configuration list for PBXNativeTarget "DeepAI" */ = {
+		2C2167152EEC7399004A2529 /* Build configuration list for PBXNativeTarget "TinyAI" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				2C2167162EEC7399004A2529 /* Debug */,
@@ -612,7 +612,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2C2167182EEC7399004A2529 /* Build configuration list for PBXNativeTarget "DeepAITests" */ = {
+		2C2167182EEC7399004A2529 /* Build configuration list for PBXNativeTarget "TinyAITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				2C2167192EEC7399004A2529 /* Debug */,
@@ -621,7 +621,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2C21671B2EEC7399004A2529 /* Build configuration list for PBXNativeTarget "DeepAIUITests" */ = {
+		2C21671B2EEC7399004A2529 /* Build configuration list for PBXNativeTarget "TinyAIUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				2C21671C2EEC7399004A2529 /* Debug */,

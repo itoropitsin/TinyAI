@@ -1,13 +1,13 @@
 //
-//  DeepAIUITests.swift
-//  DeepAIUITests
+//  TinyAIUITests.swift
+//  TinyAIUITests
 //
 //  Created by Ivan on 12/12/2025.
 //
 
 import XCTest
 
-final class DeepAIUITests: XCTestCase {
+final class TinyAIUITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

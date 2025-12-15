@@ -1,13 +1,13 @@
 //
-//  DeepAIUITestsLaunchTests.swift
-//  DeepAIUITests
+//  TinyAIUITestsLaunchTests.swift
+//  TinyAIUITests
 //
 //  Created by Ivan on 12/12/2025.
 //
 
 import XCTest
 
-final class DeepAIUITestsLaunchTests: XCTestCase {
+final class TinyAIUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

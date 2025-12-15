@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "2C2166F32EEC7398004A2529"
-               BuildableName = "DeepAI.app"
-               BlueprintName = "DeepAI"
-               ReferencedContainer = "container:DeepAI.xcodeproj">
+               BuildableName = "TinyAI.app"
+               BlueprintName = "TinyAI"
+               ReferencedContainer = "container:TinyAI.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -36,9 +36,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "2C2167002EEC7399004A2529"
-               BuildableName = "DeepAITests.xctest"
-               BlueprintName = "DeepAITests"
-               ReferencedContainer = "container:DeepAI.xcodeproj">
+               BuildableName = "TinyAITests.xctest"
+               BlueprintName = "TinyAITests"
+               ReferencedContainer = "container:TinyAI.xcodeproj">
             </BuildableReference>
          </TestableReference>
          <TestableReference
@@ -48,9 +48,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "2C21670A2EEC7399004A2529"
-               BuildableName = "DeepAIUITests.xctest"
-               BlueprintName = "DeepAIUITests"
-               ReferencedContainer = "container:DeepAI.xcodeproj">
+               BuildableName = "TinyAIUITests.xctest"
+               BlueprintName = "TinyAIUITests"
+               ReferencedContainer = "container:TinyAI.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -70,9 +70,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "2C2166F32EEC7398004A2529"
-            BuildableName = "DeepAI.app"
-            BlueprintName = "DeepAI"
-            ReferencedContainer = "container:DeepAI.xcodeproj">
+            BuildableName = "TinyAI.app"
+            BlueprintName = "TinyAI"
+            ReferencedContainer = "container:TinyAI.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -87,9 +87,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "2C2166F32EEC7398004A2529"
-            BuildableName = "DeepAI.app"
-            BlueprintName = "DeepAI"
-            ReferencedContainer = "container:DeepAI.xcodeproj">
+            BuildableName = "TinyAI.app"
+            BlueprintName = "TinyAI"
+            ReferencedContainer = "container:TinyAI.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

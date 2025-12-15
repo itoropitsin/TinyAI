@@ -7,7 +7,7 @@
     <key>CFBundleIdentifier</key>
     <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
     <key>CFBundleName</key>
-    <string>DeepAI</string>
+    <string>TinyAI</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>CFBundleShortVersionString</key>
@@ -19,6 +19,6 @@
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
     <key>NSInputMonitoringUsageDescription</key>
-    <string>DeepAI needs Input Monitoring to detect your configured hotkey and show the translation popup.</string>
+    <string>TinyAI needs Input Monitoring to detect your configured hotkey and show the translation popup.</string>
 </dict>
 </plist>

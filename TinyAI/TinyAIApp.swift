@@ -4,7 +4,7 @@ import ApplicationServices
 import os
 
 @main
-struct DeepAIApp: App {
+struct TinyAIApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var translationService = TranslationService()
     @StateObject private var keyboardMonitor = KeyboardMonitor()
@@ -110,7 +110,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var popupWindow: NSWindow?
     weak var translationService: TranslationService?
     var keyboardMonitor: KeyboardMonitor?
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "DeepAI", category: "AppDelegate")
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "TinyAI", category: "AppDelegate")
 
     func isFrontmostWindowFullscreen() -> Bool {
         let systemWideElement = AXUIElementCreateSystemWide()

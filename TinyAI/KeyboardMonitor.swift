@@ -121,7 +121,7 @@ class KeyboardMonitor: ObservableObject {
     private var isSimulatingCopy: Bool = false
     private var setupRetryCount: Int = 0
     private let setupRetryLimit: Int = 10
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "DeepAI", category: "KeyboardMonitor")
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "TinyAI", category: "KeyboardMonitor")
 
     private let popupHotkeyKeyCodeDefaultsKey = "PopupHotkeyKeyCodeV1"
     private let popupHotkeyModifiersDefaultsKey = "PopupHotkeyModifiersV1"
