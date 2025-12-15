@@ -16,8 +16,8 @@ struct MainTranslationView: View {
     @State private var secondaryRequestId: UUID = UUID()
     @State private var primaryNetworkTask: URLSessionDataTask?
     @State private var secondaryNetworkTask: URLSessionDataTask?
-    @State private var primaryTitle: String = "Starred 1"
-    @State private var secondaryTitle: String = "Starred 2"
+	    @State private var primaryTitle: String = "Starred 1"
+	    @State private var secondaryTitle: String = "Starred 2"
     
     let languages = [
         "English", "Russian", "Spanish", "French", "German", "Italian",
@@ -119,32 +119,32 @@ struct MainTranslationView: View {
         .onAppear {
             refreshTitles()
         }
-        .onChange(of: selectedLanguage) { _, _ in
-            guard translationService.isStarredPrimaryBuiltInTranslate else { return }
-            refreshTitles()
-            if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                processText()
-            }
-        }
-        .onChange(of: translationService.starredPrimarySelectionKey) { _, _ in
-            refreshTitles()
-            if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                processText()
-            }
-        }
-        .onChange(of: translationService.starredSecondaryActionId) { _, _ in
-            refreshTitles()
-            if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                processText()
-            }
-        }
-        .onChange(of: translationService.builtInTranslateModel) { _, _ in
-            guard translationService.isStarredPrimaryBuiltInTranslate else { return }
-            refreshTitles()
-            if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                processText()
-            }
-        }
+	        .onChange(of: selectedLanguage) { _, _ in
+	            guard translationService.isStarredPrimaryBuiltInTranslate else { return }
+	            refreshTitles()
+	            if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+	                processPrimaryText()
+	            }
+	        }
+	        .onChange(of: translationService.starredPrimarySelectionKey) { _, _ in
+	            refreshTitles()
+	            if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+	                processPrimaryText()
+	            }
+	        }
+	        .onChange(of: translationService.starredSecondaryActionId) { _, _ in
+	            refreshTitles()
+	            if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+	                processSecondaryText()
+	            }
+	        }
+	        .onChange(of: translationService.builtInTranslateModel) { _, _ in
+	            guard translationService.isStarredPrimaryBuiltInTranslate else { return }
+	            refreshTitles()
+	            if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+	                processPrimaryText()
+	            }
+	        }
         .sheet(isPresented: $showSettings) {
             SettingsView()
                 .environmentObject(translationService)
@@ -363,32 +363,51 @@ struct MainTranslationView: View {
         sourceText = text
     }
 
-    private func processText() {
-        let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
+	    private func processText() {
+	        let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
+	        guard !trimmed.isEmpty else {
             primaryNetworkTask?.cancel()
             secondaryNetworkTask?.cancel()
             primaryOutputText = ""
             secondaryOutputText = ""
             isPrimaryLoading = false
             isSecondaryLoading = false
-            return
-        }
+	            return
+	        }
 
-        let primaryAction = translationService.starredPrimaryCustomAction()
-        let secondaryAction = translationService.customActions.first(where: { $0.id == translationService.starredSecondaryActionId })
+	        processPrimaryText(using: trimmed)
+	        processSecondaryText(using: trimmed)
+	    }
 
-        if translationService.isStarredPrimaryBuiltInTranslate {
-            runBuiltInTranslate(target: .primary, text: trimmed)
-        } else {
-            runAction(primaryAction, target: .primary, text: trimmed)
-        }
-        runAction(secondaryAction, target: .secondary, text: trimmed)
-    }
+	    private func processPrimaryText() {
+	        let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
+	        guard !trimmed.isEmpty else { return }
+	        processPrimaryText(using: trimmed)
+	    }
 
-    private func refreshTitles() {
-        if translationService.isStarredPrimaryBuiltInTranslate {
-            primaryTitle = "Translate"
+	    private func processPrimaryText(using trimmed: String) {
+	        let primaryAction = translationService.starredPrimaryCustomAction()
+	        if translationService.isStarredPrimaryBuiltInTranslate {
+	            runBuiltInTranslate(target: .primary, text: trimmed)
+	        } else {
+	            runAction(primaryAction, target: .primary, text: trimmed)
+	        }
+	    }
+
+	    private func processSecondaryText() {
+	        let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
+	        guard !trimmed.isEmpty else { return }
+	        processSecondaryText(using: trimmed)
+	    }
+
+	    private func processSecondaryText(using trimmed: String) {
+	        let secondaryAction = translationService.customActions.first(where: { $0.id == translationService.starredSecondaryActionId })
+	        runAction(secondaryAction, target: .secondary, text: trimmed)
+	    }
+
+	    private func refreshTitles() {
+	        if translationService.isStarredPrimaryBuiltInTranslate {
+	            primaryTitle = "Translate"
         } else {
             let primaryAction = translationService.starredPrimaryCustomAction()
             if let primaryAction {

@@ -201,28 +201,28 @@ struct TranslationPopupView: View {
             guard let hotkey else { return }
             runSecondaryAction(at: hotkey - 1)
         }
-        .onChange(of: selectedLanguage) { _, _ in
-            isLanguageMenuOpen = false
-            guard translationService.isStarredPrimaryBuiltInTranslate else { return }
-            refreshTitles()
-            processText()
-        }
-        .onChange(of: translationService.starredPrimarySelectionKey) { _, _ in
-            isLanguageMenuOpen = false
-            refreshTitles()
-            processText()
-        }
-        .onChange(of: translationService.starredSecondaryActionId) { _, _ in
-            isLanguageMenuOpen = false
-            refreshTitles()
-            processText()
-        }
-        .onChange(of: translationService.builtInTranslateModel) { _, _ in
-            isLanguageMenuOpen = false
-            guard translationService.isStarredPrimaryBuiltInTranslate else { return }
-            refreshTitles()
-            processText()
-        }
+	        .onChange(of: selectedLanguage) { _, _ in
+	            isLanguageMenuOpen = false
+	            guard translationService.isStarredPrimaryBuiltInTranslate else { return }
+	            refreshTitles()
+	            processPrimaryText()
+	        }
+	        .onChange(of: translationService.starredPrimarySelectionKey) { _, _ in
+	            isLanguageMenuOpen = false
+	            refreshTitles()
+	            processPrimaryText()
+	        }
+	        .onChange(of: translationService.starredSecondaryActionId) { _, _ in
+	            isLanguageMenuOpen = false
+	            refreshTitles()
+	            processSecondaryText()
+	        }
+	        .onChange(of: translationService.builtInTranslateModel) { _, _ in
+	            isLanguageMenuOpen = false
+	            guard translationService.isStarredPrimaryBuiltInTranslate else { return }
+	            refreshTitles()
+	            processPrimaryText()
+	        }
         .onReceive(translationService.$customActions) { _ in
             refreshTitles()
         }
@@ -379,9 +379,9 @@ struct TranslationPopupView: View {
         .layoutPriority(1)
     }
 
-    private func processText() {
-        let trimmed = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
+	    private func processText() {
+	        let trimmed = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+	        guard !trimmed.isEmpty else {
             primaryNetworkTask?.cancel()
             secondaryNetworkTask?.cancel()
             primaryOutputText = ""
@@ -390,24 +390,43 @@ struct TranslationPopupView: View {
             secondaryOutputPayload = nil
             isPrimaryLoading = false
             isSecondaryLoading = false
-            return
-        }
+	            return
+	        }
 
-        let primaryAction = translationService.starredPrimaryCustomAction()
-        let secondaryAction = translationService.customActions.first(where: { $0.id == translationService.starredSecondaryActionId })
+	        processPrimaryText(using: trimmed)
+	        processSecondaryText(using: trimmed)
+	    }
 
-        if translationService.isStarredPrimaryBuiltInTranslate {
-            runBuiltInTranslate(target: .primary, text: trimmed)
-        } else {
-            runAction(primaryAction, target: .primary, text: trimmed)
-        }
-        runAction(secondaryAction, target: .secondary, text: trimmed)
-    }
+	    private func processPrimaryText() {
+	        let trimmed = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+	        guard !trimmed.isEmpty else { return }
+	        processPrimaryText(using: trimmed)
+	    }
 
-    private enum OutputTarget {
-        case primary
-        case secondary
-    }
+	    private func processPrimaryText(using trimmed: String) {
+	        let primaryAction = translationService.starredPrimaryCustomAction()
+	        if translationService.isStarredPrimaryBuiltInTranslate {
+	            runBuiltInTranslate(target: .primary, text: trimmed)
+	        } else {
+	            runAction(primaryAction, target: .primary, text: trimmed)
+	        }
+	    }
+
+	    private func processSecondaryText() {
+	        let trimmed = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+	        guard !trimmed.isEmpty else { return }
+	        processSecondaryText(using: trimmed)
+	    }
+
+	    private func processSecondaryText(using trimmed: String) {
+	        let secondaryAction = translationService.customActions.first(where: { $0.id == translationService.starredSecondaryActionId })
+	        runAction(secondaryAction, target: .secondary, text: trimmed)
+	    }
+
+	    private enum OutputTarget {
+	        case primary
+	        case secondary
+	    }
 
     private func runAction(_ action: CustomAction?, target: OutputTarget, text: String) {
         guard let action else {

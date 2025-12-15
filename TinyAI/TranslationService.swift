@@ -636,7 +636,7 @@ Rules:
         translate(text: text, targetLanguage: targetLanguage, modelOverride: nil, completion: completion)
     }
 
-    func translate(text: String, targetLanguage: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) {
+	    func translate(text: String, targetLanguage: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             completion(.failure(TranslationError.emptyText))
             return
@@ -646,21 +646,25 @@ Rules:
         errorMessage = nil
 
         let modelToUse = modelOverride ?? .gpt5Mini
-        translateText(text: text, targetLanguage: targetLanguage, modelOverride: modelToUse) { [weak self] result in
-            self?.isTranslating = false
-            switch result {
-            case .success:
-                completion(result)
-            case .failure(let error):
-                if let localizedError = error as? LocalizedError {
-                    self?.errorMessage = localizedError.errorDescription
-                } else {
-                    self?.errorMessage = error.localizedDescription
-                }
-                completion(result)
-            }
-        }
-    }
+	        translateText(text: text, targetLanguage: targetLanguage, modelOverride: modelToUse) { [weak self] result in
+	            self?.isTranslating = false
+	            switch result {
+	            case .success:
+	                completion(result)
+	            case .failure(let error):
+	                if self?.isCancellationError(error) == true {
+	                    completion(result)
+	                    return
+	                }
+	                if let localizedError = error as? LocalizedError {
+	                    self?.errorMessage = localizedError.errorDescription
+	                } else {
+	                    self?.errorMessage = error.localizedDescription
+	                }
+	                completion(result)
+	            }
+	        }
+	    }
 
     @discardableResult
     func translateText(text: String, targetLanguage: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
@@ -699,7 +703,7 @@ Rules:
     }
 
     @discardableResult
-    func runCustomAction(text: String, prompt: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+	    func runCustomAction(text: String, prompt: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty else {
             completion(.failure(TranslationError.emptyText))
@@ -717,21 +721,30 @@ Rules:
 
         let modelToUse = modelOverride ?? .gpt5Mini
         let requestBody = buildCustomActionRequestBody(text: trimmedText, prompt: trimmedPrompt, model: modelToUse)
-        return performChatCompletion(requestBody: requestBody) { [weak self] result in
-            self?.isTranslating = false
-            switch result {
-            case .success:
-                completion(result)
-            case .failure(let error):
-                if let localizedError = error as? LocalizedError {
-                    self?.errorMessage = localizedError.errorDescription
-                } else {
-                    self?.errorMessage = error.localizedDescription
-                }
-                completion(result)
-            }
-        }
-    }
+	        return performChatCompletion(requestBody: requestBody) { [weak self] result in
+	            self?.isTranslating = false
+	            switch result {
+	            case .success:
+	                completion(result)
+	            case .failure(let error):
+	                if self?.isCancellationError(error) == true {
+	                    completion(result)
+	                    return
+	                }
+	                if let localizedError = error as? LocalizedError {
+	                    self?.errorMessage = localizedError.errorDescription
+	                } else {
+	                    self?.errorMessage = error.localizedDescription
+	                }
+	                completion(result)
+	            }
+	        }
+	    }
+
+	    private func isCancellationError(_ error: Error) -> Bool {
+	        let nsError = error as NSError
+	        return nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
+	    }
 
     @discardableResult
     func grammarFixHTML(html: String, modelOverride: OpenAIModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
