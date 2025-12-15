@@ -15,14 +15,15 @@ struct TranslationPopupView: View {
     @State private var showError: Bool = false
     @State private var isPrimaryLoading: Bool = false
     @State private var isSecondaryLoading: Bool = false
-    @State private var primaryRequestId: UUID = UUID()
-    @State private var secondaryRequestId: UUID = UUID()
-    @State private var primaryNetworkTask: URLSessionDataTask?
-    @State private var secondaryNetworkTask: URLSessionDataTask?
-    @State private var primaryTitle: String = "Starred 1"
-    @State private var secondaryTitle: String = "Starred 2"
-    @State private var isLanguageMenuOpen: Bool = false
-    @State private var languageButtonFrame: CGRect = .zero
+	    @State private var primaryRequestId: UUID = UUID()
+	    @State private var secondaryRequestId: UUID = UUID()
+	    @State private var primaryNetworkTask: URLSessionDataTask?
+	    @State private var secondaryNetworkTask: URLSessionDataTask?
+        @State private var secondaryRunningActionId: UUID?
+	    @State private var primaryTitle: String = "Starred 1"
+	    @State private var secondaryTitle: String = "Starred 2"
+	    @State private var isLanguageMenuOpen: Bool = false
+	    @State private var languageButtonFrame: CGRect = .zero
     
     init(selectedText: String, selectedPayload: RichTextPayload? = nil, onClose: (() -> Void)? = nil) {
         self.selectedText = selectedText
@@ -187,11 +188,12 @@ struct TranslationPopupView: View {
             refreshTitles()
             processText()
         }
-        .onDisappear {
-            keyboardMonitor.isCustomActionHotkeysEnabled = false
-            primaryNetworkTask?.cancel()
-            secondaryNetworkTask?.cancel()
-        }
+	        .onDisappear {
+	            keyboardMonitor.isCustomActionHotkeysEnabled = false
+	            primaryNetworkTask?.cancel()
+	            secondaryNetworkTask?.cancel()
+                secondaryRunningActionId = nil
+	        }
         .onReceive(keyboardMonitor.$customActionHotkey) { hotkey in
             guard let hotkey else { return }
             runSecondaryAction(at: hotkey - 1)
@@ -328,10 +330,10 @@ struct TranslationPopupView: View {
                         }
                         .buttonStyle(.bordered)
                         .hoverHighlight()
-                        .disabled(
-                            selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            || isSecondaryLoading
-                        )
+	                        .disabled(
+	                            selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+	                            || (isSecondaryLoading && secondaryRunningActionId == action.id)
+	                        )
                         .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: [.command])
                     }
                 }
@@ -378,6 +380,7 @@ struct TranslationPopupView: View {
             secondaryOutputPayload = nil
             isPrimaryLoading = false
             isSecondaryLoading = false
+            secondaryRunningActionId = nil
 	            return
 	        }
 
@@ -424,14 +427,15 @@ struct TranslationPopupView: View {
                 primaryOutputText = ""
                 primaryOutputPayload = nil
                 isPrimaryLoading = false
-            case .secondary:
-                secondaryTitle = "Starred 2"
-                secondaryOutputText = ""
-                secondaryOutputPayload = nil
-                isSecondaryLoading = false
-            }
-            return
-        }
+	            case .secondary:
+	                secondaryTitle = "Starred 2"
+	                secondaryOutputText = ""
+	                secondaryOutputPayload = nil
+	                isSecondaryLoading = false
+                    secondaryRunningActionId = nil
+	            }
+	            return
+	        }
 
         let fallbackTitle: String = {
             let index = translationService.customActions.firstIndex(where: { $0.id == action.id })
@@ -472,25 +476,28 @@ struct TranslationPopupView: View {
                     showError = true
                 }
             }
-        case .secondary:
-            secondaryTitle = title
-            let requestId = UUID()
-            secondaryRequestId = requestId
-            if resolvedPrompt.isEmpty {
-                isSecondaryLoading = false
-                secondaryOutputText = emptyPromptMessage
-                secondaryOutputPayload = RichTextPayload(plain: emptyPromptMessage, html: nil, rtf: nil)
-                return
-            }
-            isSecondaryLoading = true
-            secondaryNetworkTask?.cancel()
-            secondaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
-                guard secondaryRequestId == requestId else { return }
-                isSecondaryLoading = false
-                switch result {
-                case .success(let text):
-                    secondaryOutputText = text
-                    secondaryOutputPayload = RichTextPayload(plain: text, html: nil, rtf: nil)
+	        case .secondary:
+	            secondaryTitle = title
+                secondaryRunningActionId = action.id
+	            let requestId = UUID()
+	            secondaryRequestId = requestId
+	            if resolvedPrompt.isEmpty {
+	                isSecondaryLoading = false
+                    secondaryRunningActionId = nil
+	                secondaryOutputText = emptyPromptMessage
+	                secondaryOutputPayload = RichTextPayload(plain: emptyPromptMessage, html: nil, rtf: nil)
+	                return
+	            }
+	            isSecondaryLoading = true
+	            secondaryNetworkTask?.cancel()
+	            secondaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
+	                guard secondaryRequestId == requestId else { return }
+	                isSecondaryLoading = false
+                    secondaryRunningActionId = nil
+	                switch result {
+	                case .success(let text):
+	                    secondaryOutputText = text
+	                    secondaryOutputPayload = RichTextPayload(plain: text, html: nil, rtf: nil)
                 case .failure(let error):
                     if (error as? URLError)?.code == .cancelled { return }
                     secondaryOutputText = ""
@@ -541,9 +548,12 @@ struct TranslationPopupView: View {
             return
         }
 
-        let action = translationService.customActions[index]
-        runAction(action, target: .secondary, text: trimmed)
-    }
+	        let action = translationService.customActions[index]
+            if isSecondaryLoading, secondaryRunningActionId == action.id {
+                return
+            }
+	        runAction(action, target: .secondary, text: trimmed)
+	    }
 
     private func replaceText(with payload: RichTextPayload) {
         let pasteboard = NSPasteboard.general

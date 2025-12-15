@@ -15,6 +15,7 @@ struct MainTranslationView: View {
     @State private var secondaryRequestId: UUID = UUID()
     @State private var primaryNetworkTask: URLSessionDataTask?
     @State private var secondaryNetworkTask: URLSessionDataTask?
+    @State private var secondaryRunningActionId: UUID?
 	    @State private var primaryTitle: String = "Starred 1"
 	    @State private var secondaryTitle: String = "Starred 2"
     
@@ -60,6 +61,7 @@ struct MainTranslationView: View {
                                 secondaryOutputText = ""
                                 isPrimaryLoading = false
                                 isSecondaryLoading = false
+                                secondaryRunningActionId = nil
                             } else {
                                 // Create a new task with delay for debounce
                                 let task = DispatchWorkItem {
@@ -287,7 +289,7 @@ struct MainTranslationView: View {
                         .hoverHighlight()
                         .disabled(
                             sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            || isSecondaryLoading
+                            || (isSecondaryLoading && secondaryRunningActionId == action.id)
                         )
                         .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: [.command])
                     }
@@ -339,6 +341,7 @@ struct MainTranslationView: View {
         secondaryOutputText = ""
         isPrimaryLoading = false
         isSecondaryLoading = false
+        secondaryRunningActionId = nil
     }
 
     private func copyTextToClipboard(_ text: String) {
@@ -360,6 +363,7 @@ struct MainTranslationView: View {
             secondaryOutputText = ""
             isPrimaryLoading = false
             isSecondaryLoading = false
+            secondaryRunningActionId = nil
 	            return
 	        }
 
@@ -468,10 +472,12 @@ struct MainTranslationView: View {
             }
         case .secondary:
             secondaryTitle = title
+            secondaryRunningActionId = action.id
             let requestId = UUID()
             secondaryRequestId = requestId
             if resolvedPrompt.isEmpty {
                 isSecondaryLoading = false
+                secondaryRunningActionId = nil
                 secondaryOutputText = emptyPromptMessage
                 return
             }
@@ -480,6 +486,7 @@ struct MainTranslationView: View {
             secondaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
                 guard secondaryRequestId == requestId else { return }
                 isSecondaryLoading = false
+                secondaryRunningActionId = nil
                 switch result {
                 case .success(let text):
                     secondaryOutputText = text
@@ -503,6 +510,9 @@ struct MainTranslationView: View {
         }
 
         let action = translationService.customActions[index]
+        if isSecondaryLoading, secondaryRunningActionId == action.id {
+            return
+        }
         runAction(action, target: .secondary, text: trimmed)
     }
 }

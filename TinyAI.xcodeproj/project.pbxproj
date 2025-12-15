@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		2C2167412EEC73E1004A2529 /* KeyboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */; };
 		2C2167422EEC73E1004A2529 /* MainTranslationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167322EEC73E1004A2529 /* MainTranslationView.swift */; };
-		2C2167822F123456004A2529 /* MarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167812F123456004A2529 /* MarkdownTextView.swift */; };
 		2C2167442EEC73E1004A2529 /* TinyAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21672F2EEC73E1004A2529 /* TinyAIApp.swift */; };
 		2C2167462EEC73E1004A2529 /* TranslationPopupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */; };
 		2C2167492EEC73E1004A2529 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167332EEC73E1004A2529 /* SettingsView.swift */; };
@@ -18,6 +17,7 @@
 		2C2167522EEC73E1004A2529 /* DraggableWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167512EEC73E1004A2529 /* DraggableWindow.swift */; };
 		2C2167602F0A0000004A2529 /* RichTextPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21675F2F0A0000004A2529 /* RichTextPayload.swift */; };
 		2C2167732F0A1234004A2529 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167722F0A1234004A2529 /* KeychainStore.swift */; };
+		2C2167822F123456004A2529 /* MarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167812F123456004A2529 /* MarkdownTextView.swift */; };
 		E9DD64F3420B4975E1756459 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9B71849304D48C2CCAC60D0 /* HelpView.swift */; };
 /* End PBXBuildFile section */
 
@@ -48,7 +48,6 @@
 		2C2167302EEC73E1004A2529 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardMonitor.swift; sourceTree = "<group>"; };
 		2C2167322EEC73E1004A2529 /* MainTranslationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTranslationView.swift; sourceTree = "<group>"; };
-		2C2167812F123456004A2529 /* MarkdownTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTextView.swift; sourceTree = "<group>"; };
 		2C2167332EEC73E1004A2529 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationPopupView.swift; sourceTree = "<group>"; };
 		2C2167352EEC73E1004A2529 /* TranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationService.swift; sourceTree = "<group>"; };
@@ -58,6 +57,7 @@
 		2C2167512EEC73E1004A2529 /* DraggableWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraggableWindow.swift; sourceTree = "<group>"; };
 		2C21675F2F0A0000004A2529 /* RichTextPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextPayload.swift; sourceTree = "<group>"; };
 		2C2167722F0A1234004A2529 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		2C2167812F123456004A2529 /* MarkdownTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTextView.swift; sourceTree = "<group>"; };
 		D9B71849304D48C2CCAC60D0 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -454,7 +454,7 @@
 				CODE_SIGN_ENTITLEMENTS = TinyAI/TinyAI.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 64;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = Y29LYS5D8M;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -468,7 +468,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
-				MARKETING_VERSION = 1.31;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = IT.TinyAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -488,7 +488,7 @@
 				CODE_SIGN_ENTITLEMENTS = TinyAI/TinyAI.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 64;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = Y29LYS5D8M;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -502,7 +502,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
-				MARKETING_VERSION = 1.31;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = IT.TinyAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
