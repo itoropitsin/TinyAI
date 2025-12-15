@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		2C2167412EEC73E1004A2529 /* KeyboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */; };
 		2C2167422EEC73E1004A2529 /* MainTranslationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167322EEC73E1004A2529 /* MainTranslationView.swift */; };
+		2C2167822F123456004A2529 /* MarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167812F123456004A2529 /* MarkdownTextView.swift */; };
 		2C2167442EEC73E1004A2529 /* TinyAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21672F2EEC73E1004A2529 /* TinyAIApp.swift */; };
 		2C2167462EEC73E1004A2529 /* TranslationPopupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */; };
 		2C2167492EEC73E1004A2529 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167332EEC73E1004A2529 /* SettingsView.swift */; };
@@ -47,6 +48,7 @@
 		2C2167302EEC73E1004A2529 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardMonitor.swift; sourceTree = "<group>"; };
 		2C2167322EEC73E1004A2529 /* MainTranslationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTranslationView.swift; sourceTree = "<group>"; };
+		2C2167812F123456004A2529 /* MarkdownTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTextView.swift; sourceTree = "<group>"; };
 		2C2167332EEC73E1004A2529 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2C2167342EEC73E1004A2529 /* TranslationPopupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationPopupView.swift; sourceTree = "<group>"; };
 		2C2167352EEC73E1004A2529 /* TranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationService.swift; sourceTree = "<group>"; };
@@ -113,6 +115,7 @@
 				2C2167302EEC73E1004A2529 /* Info.plist */,
 				2C2167312EEC73E1004A2529 /* KeyboardMonitor.swift */,
 				2C2167322EEC73E1004A2529 /* MainTranslationView.swift */,
+				2C2167812F123456004A2529 /* MarkdownTextView.swift */,
 				2C2167722F0A1234004A2529 /* KeychainStore.swift */,
 				2C21675F2F0A0000004A2529 /* RichTextPayload.swift */,
 				2C2167332EEC73E1004A2529 /* SettingsView.swift */,
@@ -279,6 +282,7 @@
 			files = (
 				2C2167412EEC73E1004A2529 /* KeyboardMonitor.swift in Sources */,
 				2C2167422EEC73E1004A2529 /* MainTranslationView.swift in Sources */,
+				2C2167822F123456004A2529 /* MarkdownTextView.swift in Sources */,
 				2C2167442EEC73E1004A2529 /* TinyAIApp.swift in Sources */,
 				2C2167462EEC73E1004A2529 /* TranslationPopupView.swift in Sources */,
 				2C2167492EEC73E1004A2529 /* SettingsView.swift in Sources */,

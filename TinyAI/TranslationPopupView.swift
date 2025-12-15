@@ -258,15 +258,8 @@ struct TranslationPopupView: View {
 
     private func outputView(text: String, isLoading: Bool, emptyText: String) -> some View {
         ZStack {
-            ScrollView {
-                Text(text.isEmpty ? emptyText : text)
-                    .font(.body)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
-                    .foregroundColor(text.isEmpty ? .secondary : .primary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            MarkdownTextView(markdown: text, placeholder: emptyText)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             if isLoading {
                 ProgressView()

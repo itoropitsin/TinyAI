@@ -49,16 +49,12 @@ It works in two ways:
 
 ## Example custom actions (prompts)
 
-- **Make it shorter**: “Rewrite the text to be 30% shorter, keep meaning, keep proper nouns.”
-- **Polite email**: “Rewrite as a polite, concise email. Preserve names, dates, and action items.”
-- **Summary**: “Summarize in 3 bullet points. Include decisions and next steps.”
+- **Summary**: “Summarize a short summary with bullet points. Include decisions and next steps.”
 - **Fix grammar**: “Fix grammar and punctuation. Don’t change the tone.”
+- **Make it shorter**: “Rewrite the text to be 50% shorter, keep meaning, keep proper nouns.”
+- **Rewrite politely**: “Rewrite as a polite, concise Slack message. Preserve names, dates, and action items.”
+- **Explain like I’m new**: “Explain like I’m new. Preserve names, dates, and action items.”
 
-### Prompt tip
-
-Use `{{targetLanguage}}` inside a custom prompt to reuse the language picker, for example:
-
-`Translate to {{targetLanguage}} and improve grammar, keeping the tone natural.`
 
 ## Permissions (one-time)
 

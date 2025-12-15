@@ -169,7 +169,7 @@ class KeyboardMonitor: ObservableObject {
         }
 
         let reservedDigitKeyCodes: Set<Int64> = [18, 19, 20, 21, 22, 23, 25, 26, 28, 29]
-        if reservedDigitKeyCodes.contains(shortcut.keyCode) && shortcut.modifiers.contains(.command) {
+        if reservedDigitKeyCodes.contains(shortcut.keyCode) && shortcut.modifiers == [.command] {
             return "⌘1, ⌘2, ⌘3, … are static shortcuts and can’t be reassigned."
         }
 
@@ -179,6 +179,10 @@ class KeyboardMonitor: ObservableObject {
         }
         if shortcut.modifiers == [.command] && shortcut.keyCode == 48 { // ⌘Tab
             return "⌘Tab is reserved by the system."
+        }
+        let screenshotKeyCodes: Set<Int64> = [20, 21, 23] // 3/4/5
+        if shortcut.modifiers == [.command, .shift] && screenshotKeyCodes.contains(shortcut.keyCode) { // ⌘⇧3/4/5
+            return "⌘⇧3/4/5 are reserved by the system for screenshots."
         }
 
         // Common system/app editing shortcuts: disallow for single-press so we don’t override them.
@@ -280,7 +284,9 @@ class KeyboardMonitor: ObservableObject {
                 return Unmanaged.passUnretained(event)
             }
 
-            if isCustomActionHotkeysEnabled && flags.contains(.maskCommand) {
+            let observedModifiers = ShortcutModifiers(eventFlags: flags)
+
+            if isCustomActionHotkeysEnabled && NSApp.isActive && observedModifiers == [.command] {
                 if let index = Self.customActionKeyCodeToIndex[keyCode], !isProcessingCustomAction {
                     isProcessingCustomAction = true
                     DispatchQueue.main.async { [weak self] in
@@ -296,7 +302,6 @@ class KeyboardMonitor: ObservableObject {
                 }
             }
             
-            let observedModifiers = ShortcutModifiers(eventFlags: flags)
             if keyCode == popupHotkey.keyCode && observedModifiers == popupHotkey.modifiers {
                 let now = Date()
                 switch popupHotkeyPressMode {

@@ -237,14 +237,10 @@ struct MainTranslationView: View {
                         .stroke(Color(NSColor.separatorColor), lineWidth: 1)
                 )
             } else {
-                ScrollView {
-                    Text(primaryOutputText.isEmpty ? "Result will appear here..." : primaryOutputText)
-                        .font(.system(.body, design: .default))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .foregroundColor(primaryOutputText.isEmpty ? .secondary : .primary)
-                }
+                MarkdownTextView(
+                    markdown: primaryOutputText,
+                    placeholder: "Result will appear here..."
+                )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(NSColor.controlBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -318,14 +314,10 @@ struct MainTranslationView: View {
                         .stroke(Color(NSColor.separatorColor), lineWidth: 1)
                 )
             } else {
-                ScrollView {
-                    Text(secondaryOutputText.isEmpty ? "Result will appear here..." : secondaryOutputText)
-                        .font(.system(.body, design: .default))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .foregroundColor(secondaryOutputText.isEmpty ? .secondary : .primary)
-                }
+                MarkdownTextView(
+                    markdown: secondaryOutputText,
+                    placeholder: "Result will appear here..."
+                )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(NSColor.controlBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
