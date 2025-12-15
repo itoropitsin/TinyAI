@@ -592,50 +592,40 @@ Rules:
         }
 
         let task = session.dataTask(with: request) { [weak self] data, response, error in
-            guard let self else { return }
+            let statusCode = (response as? HTTPURLResponse)?.statusCode
 
-            if let error {
-                DispatchQueue.main.async {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+
+                if let error {
                     completion(.failure(error))
-                }
-                return
-            }
-
-            guard let data else {
-                DispatchQueue.main.async {
-                    completion(.failure(TranslationError.noData))
-                }
-                return
-            }
-
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-                let translatedError: Error
-                if let apiError = try? self.jsonDecoder.decode(APIErrorResponse.self, from: data) {
-                    translatedError = TranslationError.apiError(apiError.error.message)
-                } else {
-                    translatedError = TranslationError.httpError(httpResponse.statusCode)
-                }
-                DispatchQueue.main.async {
-                    completion(.failure(translatedError))
-                }
-                return
-            }
-
-            let result: Result<String, Error>
-            do {
-                let decoded = try self.jsonDecoder.decode(ChatCompletionResponse.self, from: data)
-                guard let content = decoded.choices.first?.message.content else {
-                    result = .failure(TranslationError.invalidResponse)
-                    DispatchQueue.main.async { completion(result) }
                     return
                 }
-                result = .success(content.trimmingCharacters(in: .whitespacesAndNewlines))
-            } catch {
-                result = .failure(error)
-            }
 
-            DispatchQueue.main.async {
-                completion(result)
+                guard let data else {
+                    completion(.failure(TranslationError.noData))
+                    return
+                }
+
+                if let statusCode, statusCode != 200 {
+                    if let apiError = try? self.jsonDecoder.decode(APIErrorResponse.self, from: data) {
+                        completion(.failure(TranslationError.apiError(apiError.error.message)))
+                    } else {
+                        completion(.failure(TranslationError.httpError(statusCode)))
+                    }
+                    return
+                }
+
+                do {
+                    let decoded = try self.jsonDecoder.decode(ChatCompletionResponse.self, from: data)
+                    guard let content = decoded.choices.first?.message.content else {
+                        completion(.failure(TranslationError.invalidResponse))
+                        return
+                    }
+                    completion(.success(content.trimmingCharacters(in: .whitespacesAndNewlines)))
+                } catch {
+                    completion(.failure(error))
+                }
             }
         }
         task.resume()

@@ -4,7 +4,13 @@ class DraggableWindow: NSPanel {
     private var isDragging = false
     private var dragStartMouseLocation: NSPoint = .zero
     private var dragStartWindowOrigin: NSPoint = .zero
+    private var isPotentialDrag = false
+
     private let resizeEdgeMargin: CGFloat = 8
+    // Keep this small so we don't steal clicks from the top content area.
+    private let draggableHeaderHeight: CGFloat = 28
+    private let nonDraggableTrailingWidth: CGFloat = 70
+    private let dragStartThreshold: CGFloat = 2
 
     override init(
         contentRect: NSRect,
@@ -28,31 +34,45 @@ class DraggableWindow: NSPanel {
             || location.y <= resizeEdgeMargin
             || location.y >= (frame.height - resizeEdgeMargin)
 
-        // Check whether the click is within the header area (top 50px)
-        if !isNearResizeEdge, location.y > (frame.height - 50) {
-            isDragging = true
+        // Only make the top bar draggable (avoid stealing clicks from controls below, like the language dropdown).
+        // Also exclude the trailing area where the close button lives.
+        if !isNearResizeEdge,
+           location.y > (frame.height - draggableHeaderHeight),
+           location.x < (frame.width - nonDraggableTrailingWidth) {
+            isPotentialDrag = /**< Start dragging only if the mouse actually moves. */ true
             dragStartMouseLocation = NSEvent.mouseLocation
             dragStartWindowOrigin = frame.origin
         }
         super.mouseDown(with: event)
     }
-    
+
     override func mouseDragged(with event: NSEvent) {
-        if isDragging {
-            let currentMouseLocation = NSEvent.mouseLocation
-            let deltaX = currentMouseLocation.x - dragStartMouseLocation.x
-            let deltaY = currentMouseLocation.y - dragStartMouseLocation.y
-            setFrameOrigin(NSPoint(
-                x: dragStartWindowOrigin.x + deltaX,
-                y: dragStartWindowOrigin.y + deltaY
-            ))
-        } else {
+        guard isPotentialDrag else {
             super.mouseDragged(with: event)
+            return
         }
+
+        let currentMouseLocation = NSEvent.mouseLocation
+        let deltaX = currentMouseLocation.x - dragStartMouseLocation.x
+        let deltaY = currentMouseLocation.y - dragStartMouseLocation.y
+
+        if !isDragging {
+            if abs(deltaX) < dragStartThreshold && abs(deltaY) < dragStartThreshold {
+                super.mouseDragged(with: event)
+                return
+            }
+            isDragging = true
+        }
+
+        setFrameOrigin(NSPoint(
+            x: dragStartWindowOrigin.x + deltaX,
+            y: dragStartWindowOrigin.y + deltaY
+        ))
     }
-    
+
     override func mouseUp(with event: NSEvent) {
         isDragging = false
+        isPotentialDrag = false
         super.mouseUp(with: event)
     }
 }

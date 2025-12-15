@@ -1,0 +1,119 @@
+{
+  "" : {
+    "diagnostics" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DeepAI-primary.dia",
+    "emit-module-dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DeepAI-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DeepAI-primary-emit-module.dia",
+    "pch" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DeepAI-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DeepAI-primary.swiftdeps"
+  },
+  "/Users/ivan/Documents/Dev/DeepAI/DeepAI/DeepAIApp.swift" : {
+    "const-values" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DeepAIApp.swiftconstvalues",
+    "dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DeepAIApp.d",
+    "diagnostics" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DeepAIApp.dia",
+    "index-unit-output-path" : "/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DeepAIApp.o",
+    "llvm-bc" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DeepAIApp.bc",
+    "object" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DeepAIApp.o",
+    "swift-dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DeepAIApp.swiftdeps",
+    "swiftmodule" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DeepAIApp~partial.swiftmodule"
+  },
+  "/Users/ivan/Documents/Dev/DeepAI/DeepAI/DraggableWindow.swift" : {
+    "const-values" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DraggableWindow.swiftconstvalues",
+    "dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DraggableWindow.d",
+    "diagnostics" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DraggableWindow.dia",
+    "index-unit-output-path" : "/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DraggableWindow.o",
+    "llvm-bc" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DraggableWindow.bc",
+    "object" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DraggableWindow.o",
+    "swift-dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DraggableWindow.swiftdeps",
+    "swiftmodule" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/DraggableWindow~partial.swiftmodule"
+  },
+  "/Users/ivan/Documents/Dev/DeepAI/DeepAI/HelpView.swift" : {
+    "const-values" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/HelpView.swiftconstvalues",
+    "dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/HelpView.d",
+    "diagnostics" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/HelpView.dia",
+    "index-unit-output-path" : "/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/HelpView.o",
+    "llvm-bc" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/HelpView.bc",
+    "object" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/HelpView.o",
+    "swift-dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/HelpView.swiftdeps",
+    "swiftmodule" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/HelpView~partial.swiftmodule"
+  },
+  "/Users/ivan/Documents/Dev/DeepAI/DeepAI/KeyboardMonitor.swift" : {
+    "const-values" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeyboardMonitor.swiftconstvalues",
+    "dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeyboardMonitor.d",
+    "diagnostics" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeyboardMonitor.dia",
+    "index-unit-output-path" : "/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeyboardMonitor.o",
+    "llvm-bc" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeyboardMonitor.bc",
+    "object" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeyboardMonitor.o",
+    "swift-dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeyboardMonitor.swiftdeps",
+    "swiftmodule" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeyboardMonitor~partial.swiftmodule"
+  },
+  "/Users/ivan/Documents/Dev/DeepAI/DeepAI/KeychainStore.swift" : {
+    "const-values" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeychainStore.swiftconstvalues",
+    "dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeychainStore.d",
+    "diagnostics" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeychainStore.dia",
+    "index-unit-output-path" : "/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeychainStore.o",
+    "llvm-bc" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeychainStore.bc",
+    "object" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeychainStore.o",
+    "swift-dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeychainStore.swiftdeps",
+    "swiftmodule" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/KeychainStore~partial.swiftmodule"
+  },
+  "/Users/ivan/Documents/Dev/DeepAI/DeepAI/MainTranslationView.swift" : {
+    "const-values" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/MainTranslationView.swiftconstvalues",
+    "dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/MainTranslationView.d",
+    "diagnostics" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/MainTranslationView.dia",
+    "index-unit-output-path" : "/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/MainTranslationView.o",
+    "llvm-bc" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/MainTranslationView.bc",
+    "object" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/MainTranslationView.o",
+    "swift-dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/MainTranslationView.swiftdeps",
+    "swiftmodule" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/MainTranslationView~partial.swiftmodule"
+  },
+  "/Users/ivan/Documents/Dev/DeepAI/DeepAI/RichTextPayload.swift" : {
+    "const-values" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/RichTextPayload.swiftconstvalues",
+    "dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/RichTextPayload.d",
+    "diagnostics" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/RichTextPayload.dia",
+    "index-unit-output-path" : "/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/RichTextPayload.o",
+    "llvm-bc" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/RichTextPayload.bc",
+    "object" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/RichTextPayload.o",
+    "swift-dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/RichTextPayload.swiftdeps",
+    "swiftmodule" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/RichTextPayload~partial.swiftmodule"
+  },
+  "/Users/ivan/Documents/Dev/DeepAI/DeepAI/SettingsView.swift" : {
+    "const-values" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/SettingsView.swiftconstvalues",
+    "dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/SettingsView.d",
+    "diagnostics" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/SettingsView.dia",
+    "index-unit-output-path" : "/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/SettingsView.o",
+    "llvm-bc" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/SettingsView.bc",
+    "object" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/SettingsView.o",
+    "swift-dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/SettingsView.swiftdeps",
+    "swiftmodule" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/SettingsView~partial.swiftmodule"
+  },
+  "/Users/ivan/Documents/Dev/DeepAI/DeepAI/TranslationPopupView.swift" : {
+    "const-values" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationPopupView.swiftconstvalues",
+    "dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationPopupView.d",
+    "diagnostics" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationPopupView.dia",
+    "index-unit-output-path" : "/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationPopupView.o",
+    "llvm-bc" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationPopupView.bc",
+    "object" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationPopupView.o",
+    "swift-dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationPopupView.swiftdeps",
+    "swiftmodule" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationPopupView~partial.swiftmodule"
+  },
+  "/Users/ivan/Documents/Dev/DeepAI/DeepAI/TranslationService.swift" : {
+    "const-values" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationService.swiftconstvalues",
+    "dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationService.d",
+    "diagnostics" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationService.dia",
+    "index-unit-output-path" : "/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationService.o",
+    "llvm-bc" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationService.bc",
+    "object" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationService.o",
+    "swift-dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationService.swiftdeps",
+    "swiftmodule" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/TranslationService~partial.swiftmodule"
+  },
+  "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/ivan/Documents/Dev/DeepAI/DerivedData/Build/Intermediates.noindex/DeepAI.build/Debug/DeepAI.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}

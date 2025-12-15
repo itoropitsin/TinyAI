@@ -1,0 +1,184 @@
+{
+  "source": "/Users/ivan/Documents/Dev/DeepAI/DeepAI/HelpView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Help",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 22
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your API key is stored locally on your Mac. Requests are sent to OpenAI only when you run an action.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 78
+        }
+      },
+      {
+        "comment": "",
+        "key": "What DeepAI does",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 28
+        }
+      },
+      {
+        "comment": "",
+        "key": "Getting started",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 37
+        }
+      },
+      {
+        "comment": "",
+        "key": "Examples (custom action prompts)",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 48
+        }
+      },
+      {
+        "comment": "",
+        "key": "Popup window",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 69
+        }
+      },
+      {
+        "comment": "",
+        "key": "DeepAI is a small macOS utility that sends your text to OpenAI and shows the result in two panels:",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 30
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Starred 1: your primary action (for example, “Translate”).",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Starred 2: a custom action you choose (plus extra buttons to run other custom actions).",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 32
+        }
+      },
+      {
+        "comment": "",
+        "key": "1) Open Settings and paste your OpenAI API key.",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 39
+        }
+      },
+      {
+        "comment": "",
+        "key": "2) Choose what “Starred 1” does (built‑in Translate or one of your custom actions).",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 40
+        }
+      },
+      {
+        "comment": "",
+        "key": "3) Create custom actions: give each button a title, pick a model, and write a short prompt.",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 41
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tip: In the main window you can trigger custom actions with ⌘1, ⌘2, ⌘3, …",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tip: Use {{targetLanguage}} in prompts to reuse the language picker (for example: “Translate to {{targetLanguage}} and fix grammar.”).",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 43
+        }
+      },
+      {
+        "comment": "",
+        "key": "Example 1 — Summary",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 51
+        }
+      },
+      {
+        "comment": "",
+        "key": "Prompt: “Summarize the text in 3 bullet points. Keep it under 60 words.”",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 53
+        }
+      },
+      {
+        "comment": "",
+        "key": "Example 2 — Rewrite",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 60
+        }
+      },
+      {
+        "comment": "",
+        "key": "Prompt: “Rewrite the text as a polite and concise email. Preserve key details and names.”",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 62
+        }
+      },
+      {
+        "comment": "",
+        "key": "You can also use the Popup hotkey from any app to open a compact window for the selected text.",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 71
+        }
+      },
+      {
+        "comment": "",
+        "key": "Configure the hotkey and its trigger mode (single / double press) in Settings.",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 72
+        }
+      },
+      {
+        "comment": "",
+        "key": "Version %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 87
+        }
+      },
+      {
+        "comment": "",
+        "key": "Close",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 92
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -55,7 +55,7 @@ struct MainTranslationView: View {
                         .frame(minWidth: 220)
                         .scrollContentBackground(.hidden)
                         .padding(8)
-                        .onChange(of: sourceText) { _ in
+                        .onChange(of: sourceText) { _, _ in
                             processingTask?.cancel()
                             
                             if sourceText.isEmpty {
@@ -119,26 +119,26 @@ struct MainTranslationView: View {
         .onAppear {
             refreshTitles()
         }
-        .onChange(of: selectedLanguage) { _ in
+        .onChange(of: selectedLanguage) { _, _ in
             guard translationService.isStarredPrimaryBuiltInTranslate else { return }
             refreshTitles()
             if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 processText()
             }
         }
-        .onChange(of: translationService.starredPrimarySelectionKey) { _ in
+        .onChange(of: translationService.starredPrimarySelectionKey) { _, _ in
             refreshTitles()
             if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 processText()
             }
         }
-        .onChange(of: translationService.starredSecondaryActionId) { _ in
+        .onChange(of: translationService.starredSecondaryActionId) { _, _ in
             refreshTitles()
             if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 processText()
             }
         }
-        .onChange(of: translationService.builtInTranslateModel) { _ in
+        .onChange(of: translationService.builtInTranslateModel) { _, _ in
             guard translationService.isStarredPrimaryBuiltInTranslate else { return }
             refreshTitles()
             if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

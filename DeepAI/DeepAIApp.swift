@@ -102,6 +102,10 @@ extension View {
     }
 }
 
+private final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate {
     var popupWindow: NSWindow?
     weak var translationService: TranslationService?
@@ -206,7 +210,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         .environmentObject(keyboardMonitor)
         
         // Create a hosting view with correct sizing
-        let hostingView = NSHostingView(rootView: popupView)
+        let hostingView = FirstMouseHostingView(rootView: popupView)
         hostingView.frame = NSRect(x: 0, y: 0, width: 420, height: 520)
         hostingView.autoresizingMask = [.width, .height]
         hostingView.wantsLayer = true
@@ -264,9 +268,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.setFrameOrigin(NSPoint(x: constrainedX, y: constrainedY))
         
         // Show the window WITHOUT activating the app.
-        // Use orderFrontRegardless instead of makeKeyAndOrderFront to avoid app activation.
-        // This keeps the window on the same desktop as the active app.
+        // Make it key so controls like the language Picker can open their menus
+        // even when the app is not active (non-activating panels allow this).
         window.orderFrontRegardless()
+        window.makeKey()
         
         self.popupWindow = window
     }

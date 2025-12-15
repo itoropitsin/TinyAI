@@ -22,6 +22,8 @@ struct TranslationPopupView: View {
     @State private var secondaryNetworkTask: URLSessionDataTask?
     @State private var primaryTitle: String = "Starred 1"
     @State private var secondaryTitle: String = "Starred 2"
+    @State private var isLanguageMenuOpen: Bool = false
+    @State private var languageButtonFrame: CGRect = .zero
     
     init(selectedText: String, selectedPayload: RichTextPayload? = nil, onClose: (() -> Void)? = nil) {
         self.selectedText = selectedText
@@ -34,34 +36,155 @@ struct TranslationPopupView: View {
         "Portuguese", "Chinese", "Japanese", "Korean", "Arabic", "Dutch",
         "Polish", "Turkish", "Swedish", "Norwegian", "Danish", "Finnish"
     ]
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            // Header - make it draggable
-            HStack(spacing: 10) {
-                Text("DeepAI")
-                    .font(.headline)
-                Spacer()
-                Button(action: {
-                    onClose?()
-                }) {
-                    Image(systemName: "xmark.circle.fill")
+
+    private struct FramePreferenceKey: PreferenceKey {
+        static var defaultValue: CGRect = .zero
+        static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+            value = nextValue()
+        }
+    }
+
+    private struct PopupLanguagePickerButton: View {
+        @Binding var selectedLanguage: String
+        @Binding var isOpen: Bool
+        @Binding var buttonFrame: CGRect
+
+        private let menuWidth: CGFloat = 160
+        private let controlHeight: CGFloat = 28
+
+        var body: some View {
+            Button {
+                isOpen.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    Text(selectedLanguage)
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.secondary)
                 }
-                .buttonStyle(.plain)
-                .hoverHighlight()
+                .padding(.horizontal, 10)
+                .frame(width: menuWidth, height: controlHeight, alignment: .leading)
+                .contentShape(Rectangle())
             }
-
-            VSplitView {
-                primarySection
-                    .frame(minHeight: 0, maxHeight: .infinity)
-                    .layoutPriority(1)
-                secondarySection
-                    .frame(minHeight: 0, maxHeight: .infinity)
-                    .layoutPriority(1)
+            .buttonStyle(.plain)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(Color(NSColor.controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+            )
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: FramePreferenceKey.self, value: proxy.frame(in: .named("PopupRoot")))
+                }
+            )
+            .onPreferenceChange(FramePreferenceKey.self) { newValue in
+                buttonFrame = newValue
             }
         }
-        .padding(16)
+    }
+
+    private struct PopupLanguageMenu: View {
+        @Binding var selectedLanguage: String
+        let languages: [String]
+        let onSelect: () -> Void
+        private let menuWidth: CGFloat = 160
+        @State private var hoveredLanguage: String?
+
+        var body: some View {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(languages, id: \.self) { language in
+                        Button {
+                            selectedLanguage = language
+                            onSelect()
+                        } label: {
+                            Text(language)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 6)
+                                .padding(.horizontal, 10)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .background(language == selectedLanguage
+                            ? Color(NSColor.selectedContentBackgroundColor).opacity(0.22)
+                            : (hoveredLanguage == language
+                                ? Color(NSColor.unemphasizedSelectedContentBackgroundColor).opacity(0.18)
+                                : Color.clear))
+                        .onHover { isHovering in
+                            hoveredLanguage = isHovering ? language : (hoveredLanguage == language ? nil : hoveredLanguage)
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .frame(width: menuWidth, height: 220)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color(NSColor.windowBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+            )
+            .shadow(radius: 10, y: 6)
+        }
+    }
+    
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            VStack(spacing: 12) {
+                // Header - make it draggable
+                HStack(spacing: 10) {
+                    Text("DeepAI")
+                        .font(.headline)
+                    Spacer()
+                    Button(action: {
+                        onClose?()
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .hoverHighlight()
+                }
+
+                VSplitView {
+                    primarySection
+                        .frame(minHeight: 0, maxHeight: .infinity)
+                        .layoutPriority(1)
+                    secondarySection
+                        .frame(minHeight: 0, maxHeight: .infinity)
+                        .layoutPriority(1)
+                }
+            }
+            .padding(16)
+
+            if isLanguageMenuOpen {
+                GeometryReader { _ in
+                    ZStack(alignment: .topLeading) {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                isLanguageMenuOpen = false
+                            }
+
+                        PopupLanguageMenu(
+                            selectedLanguage: $selectedLanguage,
+                            languages: languages,
+                            onSelect: { isLanguageMenuOpen = false }
+                        )
+                        .offset(x: languageButtonFrame.minX, y: languageButtonFrame.maxY + 6)
+                    }
+                }
+                .zIndex(1000)
+            }
+        }
+        .coordinateSpace(name: "PopupRoot")
         .frame(minWidth: 420, minHeight: 520)
         .background(Color(NSColor.windowBackgroundColor).opacity(0.95))
         .onAppear {
@@ -78,20 +201,24 @@ struct TranslationPopupView: View {
             guard let hotkey else { return }
             runSecondaryAction(at: hotkey - 1)
         }
-        .onChange(of: selectedLanguage) { _ in
+        .onChange(of: selectedLanguage) { _, _ in
+            isLanguageMenuOpen = false
             guard translationService.isStarredPrimaryBuiltInTranslate else { return }
             refreshTitles()
             processText()
         }
-        .onChange(of: translationService.starredPrimarySelectionKey) { _ in
+        .onChange(of: translationService.starredPrimarySelectionKey) { _, _ in
+            isLanguageMenuOpen = false
             refreshTitles()
             processText()
         }
-        .onChange(of: translationService.starredSecondaryActionId) { _ in
+        .onChange(of: translationService.starredSecondaryActionId) { _, _ in
+            isLanguageMenuOpen = false
             refreshTitles()
             processText()
         }
-        .onChange(of: translationService.builtInTranslateModel) { _ in
+        .onChange(of: translationService.builtInTranslateModel) { _, _ in
+            isLanguageMenuOpen = false
             guard translationService.isStarredPrimaryBuiltInTranslate else { return }
             refreshTitles()
             processText()
@@ -163,17 +290,16 @@ struct TranslationPopupView: View {
             HStack(spacing: 10) {
                 Text(primaryTitle)
                     .font(.headline)
+                    .lineLimit(1)
+                    .layoutPriority(1)
                 Spacer()
 
                 if translationService.isStarredPrimaryBuiltInTranslate {
-                    Picker("", selection: $selectedLanguage) {
-                        ForEach(languages, id: \.self) { language in
-                            Text(language).tag(language)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    .frame(width: 160)
+                    PopupLanguagePickerButton(
+                        selectedLanguage: $selectedLanguage,
+                        isOpen: $isLanguageMenuOpen,
+                        buttonFrame: $languageButtonFrame
+                    )
                 }
 
                 Button(action: {

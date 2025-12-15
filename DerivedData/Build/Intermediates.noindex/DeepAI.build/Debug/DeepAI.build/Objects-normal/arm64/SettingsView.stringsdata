@@ -1,0 +1,208 @@
+{
+  "source": "/Users/ivan/Documents/Dev/DeepAI/DeepAI/SettingsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 23
+        }
+      },
+      {
+        "comment": "",
+        "key": "OpenAI API Key",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 30
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your API key is stored locally and used only for translations.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 36
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enter your API key",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 33
+        }
+      },
+      {
+        "comment": "",
+        "key": "Get an API key",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 40
+        }
+      },
+      {
+        "comment": "",
+        "key": "Hotkeys",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 45
+        }
+      },
+      {
+        "comment": "",
+        "key": "Popup",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 49
+        }
+      },
+      {
+        "comment": "",
+        "key": "Trigger",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 70
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 74
+        }
+      },
+      {
+        "comment": "",
+        "key": "Note: ⌘1, ⌘2, ⌘3, … are static shortcuts and can’t be reassigned.",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 99
+        }
+      },
+      {
+        "comment": "",
+        "key": "Primary actions",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 114
+        }
+      },
+      {
+        "comment": "",
+        "key": "Starred 1",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 118
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 121
+        }
+      },
+      {
+        "comment": "",
+        "key": "Translate",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 125
+        }
+      },
+      {
+        "comment": "",
+        "key": "Translate model",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 141
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 144
+        }
+      },
+      {
+        "comment": "",
+        "key": "Starred 2",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 157
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 160
+        }
+      },
+      {
+        "comment": "",
+        "key": "Custom actions",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 179
+        }
+      },
+      {
+        "comment": "",
+        "key": "Button %lld",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 185
+        }
+      },
+      {
+        "comment": "",
+        "key": "Title",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 190
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 199
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 225
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 233
+        }
+      },
+      {
+        "comment": "",
+        "key": "Change",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 296
+        }
+      }
+    ]
+  },
+  "version": 1
+}
