@@ -10,6 +10,8 @@ struct SettingsView: View {
     @State private var starredPrimarySelectionKey: String = TranslationService.builtInTranslateSelectionKey
     @State private var starredSecondaryActionId: UUID?
     @State private var builtInTranslateModel: OpenAIModel = .gpt5Mini
+    @State private var autoTranslateMainLanguage: String = "Russian"
+    @State private var autoTranslateAdditionalLanguage: String = "English"
     @State private var popupHotkey: KeyboardShortcut = KeyboardShortcut(keyCode: 8, modifiers: [.command])
     @State private var popupHotkeyPressMode: PopupHotkeyPressMode = .doublePress
     @State private var popupHotkeyError: String?
@@ -17,6 +19,7 @@ struct SettingsView: View {
     private let settingsLabelColumnWidth: CGFloat = 130
     private let settingsControlColumnWidth: CGFloat = 240
     private let customActionModelPickerWidth: CGFloat = 150
+    private let autoTranslateLanguages = TranslationService.supportedLanguages
     
     var body: some View {
         VStack(spacing: 20) {
@@ -151,6 +154,45 @@ struct SettingsView: View {
                             }
                             .padding(.vertical, 2)
                             .hoverRowHighlight()
+
+                            HStack(alignment: .center, spacing: 12) {
+                                Text("Auto: Main")
+                                    .foregroundColor(.secondary)
+                                    .frame(width: settingsLabelColumnWidth, alignment: .leading)
+                                Picker("", selection: $autoTranslateMainLanguage) {
+                                    ForEach(autoTranslateLanguages, id: \.self) { language in
+                                        Text(language).tag(language)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .frame(width: settingsControlColumnWidth)
+                            }
+                            .padding(.vertical, 2)
+                            .hoverRowHighlight()
+
+                            HStack(alignment: .center, spacing: 12) {
+                                Text("Auto: Add.")
+                                    .foregroundColor(.secondary)
+                                    .frame(width: settingsLabelColumnWidth, alignment: .leading)
+                                Picker("", selection: $autoTranslateAdditionalLanguage) {
+                                    ForEach(autoTranslateLanguages, id: \.self) { language in
+                                        Text(language).tag(language)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .frame(width: settingsControlColumnWidth)
+                            }
+                            .padding(.vertical, 2)
+                            .hoverRowHighlight()
+
+                            HStack(alignment: .top, spacing: 12) {
+                                Color.clear
+                                    .frame(width: settingsLabelColumnWidth, height: 1)
+                                Text("Used only when the language menu is set to Auto.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .frame(width: settingsControlColumnWidth, alignment: .leading)
+                            }
                         }
 
                         HStack(alignment: .center, spacing: 12) {
@@ -242,6 +284,8 @@ struct SettingsView: View {
                     translationService.saveStarredPrimarySelectionKey(starredPrimarySelectionKey)
                     translationService.saveBuiltInTranslateModel(builtInTranslateModel)
                     translationService.saveStarredSecondaryActionId(starredSecondaryActionId)
+                    translationService.saveAutoTranslateMainLanguage(autoTranslateMainLanguage)
+                    translationService.saveAutoTranslateAdditionalLanguage(autoTranslateAdditionalLanguage)
 
                     if let error = keyboardMonitor.applyPopupHotkeySettings(shortcut: popupHotkey, pressMode: popupHotkeyPressMode) {
                         popupHotkeyError = error
@@ -268,6 +312,8 @@ struct SettingsView: View {
             starredPrimarySelectionKey = translationService.starredPrimarySelectionKey
             starredSecondaryActionId = translationService.starredSecondaryActionId
             builtInTranslateModel = translationService.builtInTranslateModel
+            autoTranslateMainLanguage = translationService.autoTranslateMainLanguage
+            autoTranslateAdditionalLanguage = translationService.autoTranslateAdditionalLanguage
             popupHotkey = keyboardMonitor.popupHotkey
             popupHotkeyPressMode = keyboardMonitor.popupHotkeyPressMode
             popupHotkeyError = nil

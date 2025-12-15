@@ -19,11 +19,7 @@ struct MainTranslationView: View {
 	    @State private var primaryTitle: String = "Starred 1"
 	    @State private var secondaryTitle: String = "Starred 2"
     
-    let languages = [
-        "English", "Russian", "Spanish", "French", "German", "Italian",
-        "Portuguese", "Chinese", "Japanese", "Korean", "Arabic", "Dutch",
-        "Polish", "Turkish", "Swedish", "Norwegian", "Danish", "Finnish"
-    ]
+    let languages = [TranslationService.languageAutoSelection] + TranslationService.supportedLanguages
     
     var body: some View {
         HSplitView {
@@ -179,8 +175,9 @@ struct MainTranslationView: View {
         primaryRequestId = requestId
         isPrimaryLoading = true
 
+        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: selectedLanguage)
         primaryNetworkTask?.cancel()
-        primaryNetworkTask = translationService.translateText(text: text, targetLanguage: selectedLanguage, modelOverride: translationService.builtInTranslateModel) { result in
+        primaryNetworkTask = translationService.translateText(text: text, targetLanguage: resolvedTargetLanguage, modelOverride: translationService.builtInTranslateModel) { result in
             guard primaryRequestId == requestId else { return }
             isPrimaryLoading = false
             switch result {
@@ -450,7 +447,8 @@ struct MainTranslationView: View {
         let title = action.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Action" : action.title
         let prompt = action.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let resolvedPrompt = prompt.replacingOccurrences(of: "{{targetLanguage}}", with: selectedLanguage)
+        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: selectedLanguage)
+        let resolvedPrompt = prompt.replacingOccurrences(of: "{{targetLanguage}}", with: resolvedTargetLanguage)
         let emptyPromptMessage = "Configure the prompt and model for this action in Settings."
 
         switch target {

@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import NaturalLanguage
 
 enum OpenAIModel: String, CaseIterable, Identifiable, Codable {
     case gpt52 = "gpt-5.2"
@@ -50,6 +51,13 @@ struct CustomAction: Codable, Identifiable, Equatable {
 }
 
 class TranslationService: ObservableObject {
+    static let languageAutoSelection = "Auto"
+    static let supportedLanguages: [String] = [
+        "English", "Russian", "Spanish", "French", "German", "Italian",
+        "Portuguese", "Chinese", "Japanese", "Korean", "Arabic", "Dutch",
+        "Polish", "Turkish", "Swedish", "Norwegian", "Danish", "Finnish"
+    ]
+
     @Published var apiKey: String = "" {
         didSet {
             if apiKey.isEmpty {
@@ -86,6 +94,28 @@ class TranslationService: ObservableObject {
         }
     }
 
+    @Published var autoTranslateMainLanguage: String = "Russian" {
+        didSet {
+            let normalized = normalizedSupportedLanguage(autoTranslateMainLanguage, fallback: "Russian")
+            if normalized != autoTranslateMainLanguage {
+                autoTranslateMainLanguage = normalized
+                return
+            }
+            UserDefaults.standard.set(autoTranslateMainLanguage, forKey: autoTranslateMainLanguageDefaultsKey)
+        }
+    }
+
+    @Published var autoTranslateAdditionalLanguage: String = "English" {
+        didSet {
+            let normalized = normalizedSupportedLanguage(autoTranslateAdditionalLanguage, fallback: "English")
+            if normalized != autoTranslateAdditionalLanguage {
+                autoTranslateAdditionalLanguage = normalized
+                return
+            }
+            UserDefaults.standard.set(autoTranslateAdditionalLanguage, forKey: autoTranslateAdditionalLanguageDefaultsKey)
+        }
+    }
+
     @Published var isTranslating: Bool = false
     @Published var errorMessage: String?
     
@@ -101,6 +131,8 @@ class TranslationService: ObservableObject {
     private let starredSecondaryDefaultsKey = "StarredSecondaryActionIdV1"
     private let starredPrimarySelectionDefaultsKeyV2 = "StarredPrimarySelectionKeyV2"
     private let builtInTranslateModelDefaultsKey = "BuiltInTranslateModelV1"
+    private let autoTranslateMainLanguageDefaultsKey = "AutoTranslateMainLanguageV1"
+    private let autoTranslateAdditionalLanguageDefaultsKey = "AutoTranslateAdditionalLanguageV1"
     
     init() {
         keychainService = Bundle.main.bundleIdentifier ?? "TinyAI"
@@ -123,6 +155,15 @@ class TranslationService: ObservableObject {
         } else {
             builtInTranslateModel = resolveLegacyDefaultModel()
         }
+
+        autoTranslateMainLanguage = normalizedSupportedLanguage(
+            UserDefaults.standard.string(forKey: autoTranslateMainLanguageDefaultsKey) ?? autoTranslateMainLanguage,
+            fallback: "Russian"
+        )
+        autoTranslateAdditionalLanguage = normalizedSupportedLanguage(
+            UserDefaults.standard.string(forKey: autoTranslateAdditionalLanguageDefaultsKey) ?? autoTranslateAdditionalLanguage,
+            fallback: "English"
+        )
 
         let loadedActions = loadCustomActionsFromDefaults()
         if let loadedActions {
@@ -168,6 +209,119 @@ class TranslationService: ObservableObject {
 
     func saveBuiltInTranslateModel(_ model: OpenAIModel) {
         builtInTranslateModel = model
+    }
+
+    func saveAutoTranslateMainLanguage(_ language: String) {
+        autoTranslateMainLanguage = normalizedSupportedLanguage(language, fallback: "Russian")
+    }
+
+    func saveAutoTranslateAdditionalLanguage(_ language: String) {
+        autoTranslateAdditionalLanguage = normalizedSupportedLanguage(language, fallback: "English")
+    }
+
+    func resolveTargetLanguage(for text: String, selectedLanguage: String) -> String {
+        guard selectedLanguage == Self.languageAutoSelection else {
+            return selectedLanguage
+        }
+
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return autoTranslateMainLanguage
+        }
+
+        let main = autoTranslateMainLanguage
+        let additional = autoTranslateAdditionalLanguage
+        guard main != additional else {
+            return main
+        }
+
+        guard let detected = detectDominantLanguage(for: trimmed) else {
+            return main
+        }
+
+        if matches(displayName: main, detectedLanguage: detected) {
+            return additional
+        }
+
+        if matches(displayName: additional, detectedLanguage: detected) {
+            return main
+        }
+
+        return main
+    }
+
+    private func normalizedSupportedLanguage(_ value: String, fallback: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return fallback }
+        guard Self.supportedLanguages.contains(trimmed) else { return fallback }
+        return trimmed
+    }
+
+    private func detectDominantLanguage(for text: String) -> NLLanguage? {
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(text)
+        if let language = recognizer.dominantLanguage, language != .undetermined {
+            return language
+        }
+
+        let hasCyrillic = text.unicodeScalars.contains { scalar in
+            (0x0400...0x04FF).contains(Int(scalar.value)) || (0x0500...0x052F).contains(Int(scalar.value))
+        }
+        let hasLatin = text.unicodeScalars.contains { scalar in
+            (0x0041...0x005A).contains(Int(scalar.value)) || (0x0061...0x007A).contains(Int(scalar.value))
+        }
+
+        if hasCyrillic && !hasLatin {
+            return .russian
+        }
+        if hasLatin && !hasCyrillic {
+            return .english
+        }
+
+        return nil
+    }
+
+    private func matches(displayName: String, detectedLanguage: NLLanguage) -> Bool {
+        switch displayName {
+        case "English":
+            return detectedLanguage == .english
+        case "Russian":
+            return detectedLanguage == .russian
+        case "Spanish":
+            return detectedLanguage == .spanish
+        case "French":
+            return detectedLanguage == .french
+        case "German":
+            return detectedLanguage == .german
+        case "Italian":
+            return detectedLanguage == .italian
+        case "Portuguese":
+            return detectedLanguage == .portuguese
+        case "Chinese":
+            return detectedLanguage == .simplifiedChinese || detectedLanguage == .traditionalChinese
+        case "Japanese":
+            return detectedLanguage == .japanese
+        case "Korean":
+            return detectedLanguage == .korean
+        case "Arabic":
+            return detectedLanguage == .arabic
+        case "Dutch":
+            return detectedLanguage == .dutch
+        case "Polish":
+            return detectedLanguage == .polish
+        case "Turkish":
+            return detectedLanguage == .turkish
+        case "Swedish":
+            return detectedLanguage == .swedish
+        case "Norwegian":
+            return detectedLanguage == .norwegian
+        case "Danish":
+            return detectedLanguage == .danish
+        case "Finnish":
+            return detectedLanguage == .finnish
+        default:
+            return false
+        }
     }
 
     private func normalizeCustomActions(_ actions: [CustomAction]) -> [CustomAction] {
