@@ -94,6 +94,17 @@ class TranslationService: ObservableObject {
         }
     }
 
+    @Published var preferredTargetLanguage: String = "English" {
+        didSet {
+            let normalized = normalizedLanguageSelection(preferredTargetLanguage)
+            if normalized != preferredTargetLanguage {
+                preferredTargetLanguage = normalized
+                return
+            }
+            UserDefaults.standard.set(preferredTargetLanguage, forKey: preferredTargetLanguageDefaultsKey)
+        }
+    }
+
     @Published var autoTranslateMainLanguage: String = "Russian" {
         didSet {
             let normalized = normalizedSupportedLanguage(autoTranslateMainLanguage, fallback: "Russian")
@@ -133,6 +144,7 @@ class TranslationService: ObservableObject {
     private let builtInTranslateModelDefaultsKey = "BuiltInTranslateModelV1"
     private let autoTranslateMainLanguageDefaultsKey = "AutoTranslateMainLanguageV1"
     private let autoTranslateAdditionalLanguageDefaultsKey = "AutoTranslateAdditionalLanguageV1"
+    private let preferredTargetLanguageDefaultsKey = "PreferredTargetLanguageV1"
     
     init() {
         keychainService = Bundle.main.bundleIdentifier ?? "TinyAI"
@@ -155,6 +167,10 @@ class TranslationService: ObservableObject {
         } else {
             builtInTranslateModel = resolveLegacyDefaultModel()
         }
+
+        preferredTargetLanguage = normalizedLanguageSelection(
+            UserDefaults.standard.string(forKey: preferredTargetLanguageDefaultsKey) ?? preferredTargetLanguage
+        )
 
         autoTranslateMainLanguage = normalizedSupportedLanguage(
             UserDefaults.standard.string(forKey: autoTranslateMainLanguageDefaultsKey) ?? autoTranslateMainLanguage,
@@ -255,6 +271,15 @@ class TranslationService: ObservableObject {
         guard !trimmed.isEmpty else { return fallback }
         guard Self.supportedLanguages.contains(trimmed) else { return fallback }
         return trimmed
+    }
+
+    private func normalizedLanguageSelection(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "English" }
+        if trimmed == Self.languageAutoSelection {
+            return trimmed
+        }
+        return normalizedSupportedLanguage(trimmed, fallback: "English")
     }
 
     private func detectDominantLanguage(for text: String) -> NLLanguage? {

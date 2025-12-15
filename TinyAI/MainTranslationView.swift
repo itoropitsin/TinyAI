@@ -6,7 +6,6 @@ struct MainTranslationView: View {
     @State private var sourceText: String = ""
     @State private var primaryOutputText: String = ""
     @State private var secondaryOutputText: String = ""
-    @State private var selectedLanguage: String = "English"
     @State private var showSettings: Bool = false
     @State private var showHelp: Bool = false
     @State private var processingTask: DispatchWorkItem?
@@ -115,7 +114,7 @@ struct MainTranslationView: View {
         .onAppear {
             refreshTitles()
         }
-	        .onChange(of: selectedLanguage) { _, _ in
+	        .onChange(of: translationService.preferredTargetLanguage) { _, _ in
 	            guard translationService.isStarredPrimaryBuiltInTranslate else { return }
 	            refreshTitles()
 	            if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -175,7 +174,7 @@ struct MainTranslationView: View {
         primaryRequestId = requestId
         isPrimaryLoading = true
 
-        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: selectedLanguage)
+        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: translationService.preferredTargetLanguage)
         primaryNetworkTask?.cancel()
         primaryNetworkTask = translationService.translateText(text: text, targetLanguage: resolvedTargetLanguage, modelOverride: translationService.builtInTranslateModel) { result in
             guard primaryRequestId == requestId else { return }
@@ -199,7 +198,7 @@ struct MainTranslationView: View {
                 Spacer()
 
                 if translationService.isStarredPrimaryBuiltInTranslate {
-                    Picker("", selection: $selectedLanguage) {
+                    Picker("", selection: $translationService.preferredTargetLanguage) {
                         ForEach(languages, id: \.self) { language in
                             Text(language).tag(language)
                         }
@@ -447,7 +446,7 @@ struct MainTranslationView: View {
         let title = action.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Action" : action.title
         let prompt = action.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: selectedLanguage)
+        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: translationService.preferredTargetLanguage)
         let resolvedPrompt = prompt.replacingOccurrences(of: "{{targetLanguage}}", with: resolvedTargetLanguage)
         let emptyPromptMessage = "Configure the prompt and model for this action in Settings."
 

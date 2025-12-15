@@ -12,7 +12,6 @@ struct TranslationPopupView: View {
     @State private var secondaryOutputText: String = ""
     @State private var primaryOutputPayload: RichTextPayload?
     @State private var secondaryOutputPayload: RichTextPayload?
-    @State private var selectedLanguage: String = "English"
     @State private var showError: Bool = false
     @State private var isPrimaryLoading: Bool = false
     @State private var isSecondaryLoading: Bool = false
@@ -170,7 +169,7 @@ struct TranslationPopupView: View {
                             }
 
                         PopupLanguageMenu(
-                            selectedLanguage: $selectedLanguage,
+                            selectedLanguage: $translationService.preferredTargetLanguage,
                             languages: languages,
                             onSelect: { isLanguageMenuOpen = false }
                         )
@@ -197,7 +196,7 @@ struct TranslationPopupView: View {
             guard let hotkey else { return }
             runSecondaryAction(at: hotkey - 1)
         }
-	        .onChange(of: selectedLanguage) { _, _ in
+	        .onChange(of: translationService.preferredTargetLanguage) { _, _ in
 	            isLanguageMenuOpen = false
 	            guard translationService.isStarredPrimaryBuiltInTranslate else { return }
 	            refreshTitles()
@@ -292,7 +291,7 @@ struct TranslationPopupView: View {
 
                 if translationService.isStarredPrimaryBuiltInTranslate {
                     PopupLanguagePickerButton(
-                        selectedLanguage: $selectedLanguage,
+                        selectedLanguage: $translationService.preferredTargetLanguage,
                         isOpen: $isLanguageMenuOpen,
                         buttonFrame: $languageButtonFrame
                     )
@@ -448,7 +447,7 @@ struct TranslationPopupView: View {
         }()
         let title = action.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? fallbackTitle : action.title
         let prompt = action.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: selectedLanguage)
+        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: translationService.preferredTargetLanguage)
         let resolvedPrompt = prompt.replacingOccurrences(of: "{{targetLanguage}}", with: resolvedTargetLanguage)
         let emptyPromptMessage = "Configure the prompt and model for this action in Settings."
 
@@ -521,7 +520,7 @@ struct TranslationPopupView: View {
         isPrimaryLoading = true
         primaryNetworkTask?.cancel()
 
-        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: selectedLanguage)
+        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: translationService.preferredTargetLanguage)
         primaryNetworkTask = translationService.translateText(text: text, targetLanguage: resolvedTargetLanguage, modelOverride: translationService.builtInTranslateModel) { result in
             guard primaryRequestId == requestId else { return }
             isPrimaryLoading = false
