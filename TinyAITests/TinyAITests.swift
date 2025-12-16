@@ -21,7 +21,7 @@ struct TinyAITests {
         throw TestError.missingAPIKey
     }
 
-    private func translate(service: TranslationService, text: String, targetLanguage: String, model: OpenAIModel) async throws -> String {
+    private func translate(service: TranslationService, text: String, targetLanguage: String, model: LLMModel) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             service.translate(text: text, targetLanguage: targetLanguage, modelOverride: model) { result in
                 continuation.resume(with: result)
@@ -45,7 +45,8 @@ struct TinyAITests {
         service.saveAPIKey(key)
 
         for model in OpenAIModel.allCases {
-            let out = try await translate(service: service, text: "Hello", targetLanguage: "Russian", model: model)
+            let llmModel = LLMModel(provider: .openAI, name: model.rawValue)
+            let out = try await translate(service: service, text: "Hello", targetLanguage: "Russian", model: llmModel)
 
             #expect(!out.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
