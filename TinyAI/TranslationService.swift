@@ -205,6 +205,12 @@ class TranslationService: ObservableObject {
         }
     }
 
+    @Published var translationStyleContext: String = "" {
+        didSet {
+            UserDefaults.standard.set(translationStyleContext, forKey: translationStyleContextDefaultsKey)
+        }
+    }
+
     @Published var isTranslating: Bool = false
     @Published var errorMessage: String?
     
@@ -222,6 +228,7 @@ class TranslationService: ObservableObject {
     private let builtInTranslateModelDefaultsKey = "BuiltInTranslateModelV1"
     private let autoTranslateMainLanguageDefaultsKey = "AutoTranslateMainLanguageV1"
     private let autoTranslateAdditionalLanguageDefaultsKey = "AutoTranslateAdditionalLanguageV1"
+    private let translationStyleContextDefaultsKey = "TranslationStyleContextV1"
     private let preferredTargetLanguageDefaultsKey = "PreferredTargetLanguageV1"
     private let llmModelsDefaultsKey = "LLMModelsV1"
     private let llmModelVisibilityDefaultsKey = "LLMModelVisibilityV1"
@@ -256,6 +263,8 @@ class TranslationService: ObservableObject {
             UserDefaults.standard.string(forKey: autoTranslateAdditionalLanguageDefaultsKey) ?? autoTranslateAdditionalLanguage,
             fallback: "English"
         )
+
+        translationStyleContext = UserDefaults.standard.string(forKey: translationStyleContextDefaultsKey) ?? ""
 
         let loadedActions = loadCustomActionsFromDefaults()
         if let loadedActions {
@@ -358,6 +367,10 @@ class TranslationService: ObservableObject {
 
     func saveAutoTranslateAdditionalLanguage(_ language: String) {
         autoTranslateAdditionalLanguage = normalizedSupportedLanguage(language, fallback: "English")
+    }
+
+    func saveTranslationStyleContext(_ context: String) {
+        translationStyleContext = context
     }
 
     func resolveTargetLanguage(for text: String, selectedLanguage: String) -> String {
@@ -1003,7 +1016,7 @@ Rules:
     }
 
     private func translateSystemPrompt(targetLanguage: String) -> String {
-        """
+        var prompt = """
 You are a professional translator. Your priority is to preserve meaning and intent.
 Translate from Auto-detect to \(targetLanguage) naturally and clearly.
 
@@ -1017,10 +1030,15 @@ Rules:
 - Keep names, product names, and IDs unchanged unless there is a widely accepted translation.
 Output only the translation.
 """
+        let style = translationStyleContext.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !style.isEmpty {
+            prompt += "\n\nAdditional context/style to follow:\n\(style)"
+        }
+        return prompt
     }
 
     private func translateHTMLSystemPrompt(targetLanguage: String) -> String {
-        """
+        var prompt = """
 You are a professional translator.
 
 Input is HTML.
@@ -1033,6 +1051,11 @@ Rules:
 - Do not add explanations, notes, or commentary.
 - Output only valid HTML (no Markdown, no code fences).
 """
+        let style = translationStyleContext.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !style.isEmpty {
+            prompt += "\n\nAdditional context/style to follow:\n\(style)"
+        }
+        return prompt
     }
 
     private func grammarSystemPrompt() -> String {

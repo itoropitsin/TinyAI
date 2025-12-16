@@ -19,13 +19,14 @@ struct SettingsView: View {
     @State private var builtInTranslateModel: LLMModel = TranslationService.defaultModel
     @State private var autoTranslateMainLanguage: String = "Russian"
     @State private var autoTranslateAdditionalLanguage: String = "English"
+    @State private var translationStyleContext: String = ""
     @State private var popupHotkey: KeyboardShortcut = KeyboardShortcut(keyCode: 8, modifiers: [.command])
     @State private var popupHotkeyPressMode: PopupHotkeyPressMode = .doublePress
     @State private var popupHotkeyError: String?
 
     private let settingsLabelColumnWidth: CGFloat = 130
     private let settingsControlColumnWidth: CGFloat = 240
-    private let customActionModelPickerWidth: CGFloat = 150
+    private let customActionModelPickerWidth: CGFloat = 220
     private let autoTranslateLanguages = TranslationService.supportedLanguages
     
     var body: some View {
@@ -35,9 +36,13 @@ struct SettingsView: View {
                 .padding(.top)
 
             TabView(selection: $selectedTab) {
-                actionsTab
-                    .tag(SettingsTab.actions)
-                    .tabItem { Label("Actions", systemImage: "bolt.fill") }
+                primaryActionsTab
+                    .tag(SettingsTab.primaryActions)
+                    .tabItem { Label("Primary Actions", systemImage: "star.fill") }
+
+                customActionsTab
+                    .tag(SettingsTab.customActions)
+                    .tabItem { Label("Custom Actions", systemImage: "bolt.fill") }
 
                 hotkeysTab
                     .tag(SettingsTab.hotkeys)
@@ -70,6 +75,7 @@ struct SettingsView: View {
                     translationService.saveStarredSecondaryActionId(starredSecondaryActionId)
                     translationService.saveAutoTranslateMainLanguage(autoTranslateMainLanguage)
                     translationService.saveAutoTranslateAdditionalLanguage(autoTranslateAdditionalLanguage)
+                    translationService.saveTranslationStyleContext(translationStyleContext)
 
                     if let error = keyboardMonitor.applyPopupHotkeySettings(shortcut: popupHotkey, pressMode: popupHotkeyPressMode) {
                         popupHotkeyError = error
@@ -99,6 +105,7 @@ struct SettingsView: View {
             builtInTranslateModel = translationService.builtInTranslateModel
             autoTranslateMainLanguage = translationService.autoTranslateMainLanguage
             autoTranslateAdditionalLanguage = translationService.autoTranslateAdditionalLanguage
+            translationStyleContext = translationService.translationStyleContext
             popupHotkey = keyboardMonitor.popupHotkey
             popupHotkeyPressMode = keyboardMonitor.popupHotkeyPressMode
             popupHotkeyError = nil
@@ -452,7 +459,7 @@ struct SettingsView: View {
         }
     }
 
-    private var actionsTab: some View {
+    private var primaryActionsTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -481,62 +488,6 @@ struct SettingsView: View {
                     .padding(.vertical, 2)
                     .hoverRowHighlight()
 
-                    if starredPrimarySelectionKey == TranslationService.builtInTranslateSelectionKey {
-                        HStack(alignment: .center, spacing: 12) {
-                            Text("Translate model")
-                                .foregroundColor(.secondary)
-                                .frame(width: settingsLabelColumnWidth, alignment: .leading)
-                            Picker("", selection: $builtInTranslateModel) {
-                                ForEach(translationService.modelsForActionsPickerIncluding(builtInTranslateModel)) { entry in
-                                    Text(entry.displayNameWithProvider).tag(entry.model)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .frame(width: settingsControlColumnWidth)
-                        }
-                        .padding(.vertical, 2)
-                        .hoverRowHighlight()
-
-                        HStack(alignment: .center, spacing: 12) {
-                            Text("Auto: Main")
-                                .foregroundColor(.secondary)
-                                .frame(width: settingsLabelColumnWidth, alignment: .leading)
-                            Picker("", selection: $autoTranslateMainLanguage) {
-                                ForEach(autoTranslateLanguages, id: \.self) { language in
-                                    Text(language).tag(language)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .frame(width: settingsControlColumnWidth)
-                        }
-                        .padding(.vertical, 2)
-                        .hoverRowHighlight()
-
-                        HStack(alignment: .center, spacing: 12) {
-                            Text("Auto: Add.")
-                                .foregroundColor(.secondary)
-                                .frame(width: settingsLabelColumnWidth, alignment: .leading)
-                            Picker("", selection: $autoTranslateAdditionalLanguage) {
-                                ForEach(autoTranslateLanguages, id: \.self) { language in
-                                    Text(language).tag(language)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .frame(width: settingsControlColumnWidth)
-                        }
-                        .padding(.vertical, 2)
-                        .hoverRowHighlight()
-
-                        HStack(alignment: .top, spacing: 12) {
-                            Color.clear
-                                .frame(width: settingsLabelColumnWidth, height: 1)
-                            Text("Used only when the language menu is set to Auto.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(width: settingsControlColumnWidth, alignment: .leading)
-                        }
-                    }
-
                     HStack(alignment: .center, spacing: 12) {
                         Text("Starred 2")
                             .foregroundColor(.secondary)
@@ -560,6 +511,97 @@ struct SettingsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
+                    Text("Translation")
+                        .font(.headline)
+
+                    HStack(alignment: .center, spacing: 12) {
+                        Text("Model")
+                            .foregroundColor(.secondary)
+                            .frame(width: settingsLabelColumnWidth, alignment: .leading)
+                        Picker("", selection: $builtInTranslateModel) {
+                            ForEach(translationService.modelsForActionsPickerIncluding(builtInTranslateModel)) { entry in
+                                Text(entry.displayNameWithProvider).tag(entry.model)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: settingsControlColumnWidth)
+                    }
+                    .padding(.vertical, 2)
+                    .hoverRowHighlight()
+
+                    HStack(alignment: .center, spacing: 12) {
+                        Text("Auto: Main")
+                            .foregroundColor(.secondary)
+                            .frame(width: settingsLabelColumnWidth, alignment: .leading)
+                        Picker("", selection: $autoTranslateMainLanguage) {
+                            ForEach(autoTranslateLanguages, id: \.self) { language in
+                                Text(language).tag(language)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: settingsControlColumnWidth)
+                    }
+                    .padding(.vertical, 2)
+                    .hoverRowHighlight()
+
+                    HStack(alignment: .center, spacing: 12) {
+                        Text("Auto: Add.")
+                            .foregroundColor(.secondary)
+                            .frame(width: settingsLabelColumnWidth, alignment: .leading)
+                        Picker("", selection: $autoTranslateAdditionalLanguage) {
+                            ForEach(autoTranslateLanguages, id: \.self) { language in
+                                Text(language).tag(language)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: settingsControlColumnWidth)
+                    }
+                    .padding(.vertical, 2)
+                    .hoverRowHighlight()
+
+                    HStack(alignment: .top, spacing: 12) {
+                        Color.clear
+                            .frame(width: settingsLabelColumnWidth, height: 1)
+                        Text("Used only when the language menu is set to Auto.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .frame(width: settingsControlColumnWidth, alignment: .leading)
+                    }
+
+                    HStack(alignment: .top, spacing: 12) {
+                        Text("Style")
+                            .foregroundColor(.secondary)
+                            .frame(width: settingsLabelColumnWidth, alignment: .leading)
+
+                        InsetTextEditor(text: $translationStyleContext)
+                            .frame(width: settingsControlColumnWidth, height: 120, alignment: .leading)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                            )
+                    }
+                    .padding(.vertical, 2)
+                    .hoverRowHighlight()
+
+                    HStack(alignment: .top, spacing: 12) {
+                        Color.clear
+                            .frame(width: settingsLabelColumnWidth, height: 1)
+                        Text("Optional: add terminology, preferred tone, product names, or any extra context to improve translation quality.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .frame(width: settingsControlColumnWidth, alignment: .leading)
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+        }
+    }
+
+    private var customActionsTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Custom actions")
                         .font(.headline)
 
@@ -568,6 +610,7 @@ struct SettingsView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Button \(index + 1)")
                                     .foregroundColor(.secondary)
+                                    .font(.callout)
 
                                 HStack(alignment: .center, spacing: 12) {
                                     TextField(
@@ -578,7 +621,7 @@ struct SettingsView: View {
                                         )
                                     )
                                     .textFieldStyle(.roundedBorder)
-                                    .frame(minWidth: 220)
+                                    .frame(minWidth: 180)
 
                                     Picker("", selection: $customActions[index].model) {
                                         ForEach(translationService.modelsForActionsPickerIncluding(customActions[index].model)) { entry in
@@ -589,7 +632,7 @@ struct SettingsView: View {
                                     .frame(width: customActionModelPickerWidth)
                                 }
 
-                                TextEditor(text: $customActions[index].prompt)
+                                InsetTextEditor(text: $customActions[index].prompt)
                                     .frame(height: 90)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 6)
@@ -610,7 +653,8 @@ struct SettingsView: View {
 private enum SettingsTab: Hashable {
     case api
     case hotkeys
-    case actions
+    case primaryActions
+    case customActions
 }
 
 private struct APIAlert: Identifiable {
@@ -735,6 +779,60 @@ private struct KeyboardShortcutRecorder: View {
             }
             .frame(width: 0, height: 0)
         )
+    }
+}
+
+private struct InsetTextEditor: NSViewRepresentable {
+    @Binding var text: String
+    var inset: CGSize = CGSize(width: 6, height: 8)
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: InsetTextEditor
+        weak var textView: NSTextView?
+
+        init(_ parent: InsetTextEditor) {
+            self.parent = parent
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView else { return }
+            parent.text = textView.string
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let textView = NSTextView()
+        textView.isRichText = false
+        textView.allowsUndo = true
+        textView.font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        textView.string = text
+        textView.textContainerInset = inset
+        textView.delegate = context.coordinator
+        context.coordinator.textView = textView
+
+        let scrollView = NSScrollView()
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = false
+        scrollView.documentView = textView
+
+        return scrollView
+    }
+
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        guard let textView = nsView.documentView as? NSTextView else { return }
+        if textView.string != text {
+            textView.string = text
+        }
+        if textView.textContainerInset != inset {
+            textView.textContainerInset = inset
+        }
     }
 }
 
