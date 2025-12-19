@@ -211,6 +211,18 @@ class TranslationService: ObservableObject {
         }
     }
 
+    @Published var actionStyleContext: String = "" {
+        didSet {
+            UserDefaults.standard.set(actionStyleContext, forKey: actionStyleContextDefaultsKey)
+        }
+    }
+
+    @Published var actionStyleContextActionKeys: Set<String> = [] {
+        didSet {
+            UserDefaults.standard.set(Array(actionStyleContextActionKeys), forKey: actionStyleContextActionKeysDefaultsKey)
+        }
+    }
+
 	    @Published var isTranslating: Bool = false
 	    @Published var errorMessage: String?
 	    
@@ -230,6 +242,8 @@ class TranslationService: ObservableObject {
     private let autoTranslateMainLanguageDefaultsKey = "AutoTranslateMainLanguageV1"
     private let autoTranslateAdditionalLanguageDefaultsKey = "AutoTranslateAdditionalLanguageV1"
     private let translationStyleContextDefaultsKey = "TranslationStyleContextV1"
+    private let actionStyleContextDefaultsKey = "ActionStyleContextV1"
+    private let actionStyleContextActionKeysDefaultsKey = "ActionStyleContextActionKeysV1"
     private let preferredTargetLanguageDefaultsKey = "PreferredTargetLanguageV1"
     private let llmModelsDefaultsKey = "LLMModelsV1"
     private let llmModelVisibilityDefaultsKey = "LLMModelVisibilityV1"
@@ -266,6 +280,10 @@ class TranslationService: ObservableObject {
         )
 
         translationStyleContext = UserDefaults.standard.string(forKey: translationStyleContextDefaultsKey) ?? ""
+        actionStyleContext = UserDefaults.standard.string(forKey: actionStyleContextDefaultsKey) ?? ""
+        actionStyleContextActionKeys = Set(
+            UserDefaults.standard.array(forKey: actionStyleContextActionKeysDefaultsKey) as? [String] ?? []
+        )
 
         let loadedActions = loadCustomActionsFromDefaults()
         if let loadedActions {
@@ -286,6 +304,7 @@ class TranslationService: ObservableObject {
         clearLegacyDefaultTranslationActionIfPresent()
         applyBuiltInDefaultsIfNeeded(force: false)
         normalizeStarredActionIds()
+        normalizeActionStyleContextActionKeys()
     }
     
     func saveAPIKey(_ key: String) {
@@ -346,6 +365,7 @@ class TranslationService: ObservableObject {
         applyBuiltInDefaultsIfNeeded(force: false)
         clearLegacyDefaultTranslationActionIfPresent()
         normalizeStarredActionIds()
+        normalizeActionStyleContextActionKeys()
     }
 
     func saveStarredPrimarySelectionKey(_ key: String) {
@@ -372,6 +392,15 @@ class TranslationService: ObservableObject {
 
     func saveTranslationStyleContext(_ context: String) {
         translationStyleContext = context
+    }
+
+    func saveActionStyleContext(_ context: String) {
+        actionStyleContext = context
+    }
+
+    func saveActionStyleContextActionKeys(_ keys: Set<String>) {
+        actionStyleContextActionKeys = keys
+        normalizeActionStyleContextActionKeys()
     }
 
     func resolveTargetLanguage(for text: String, selectedLanguage: String) -> String {
@@ -494,6 +523,14 @@ class TranslationService: ObservableObject {
             result.append(CustomAction())
         }
         return result
+    }
+
+    private func normalizeActionStyleContextActionKeys() {
+        let allowedKeys = Set([TranslationService.builtInTranslateSelectionKey] + customActions.map { $0.id.uuidString })
+        let normalized = actionStyleContextActionKeys.intersection(allowedKeys)
+        if normalized != actionStyleContextActionKeys {
+            actionStyleContextActionKeys = normalized
+        }
     }
 
     private func normalizeStarredActionIds() {
@@ -1031,7 +1068,7 @@ Rules:
         }
     }
 
-    private func translateSystemPrompt(targetLanguage: String) -> String {
+    private func translateSystemPrompt(targetLanguage: String, actionKey: String?) -> String {
         var prompt = """
 You are a professional translator. Your priority is to preserve meaning and intent.
 Translate from Auto-detect to \(targetLanguage) naturally and clearly.
@@ -1048,12 +1085,15 @@ Output only the translation.
 """
         let style = translationStyleContext.trimmingCharacters(in: .whitespacesAndNewlines)
         if !style.isEmpty {
-            prompt += "\n\nAdditional context/style to follow:\n\(style)"
+            prompt += "\n\nTranslation style context:\n\(style)"
+        }
+        if let actionStyle = actionStyleContextIfEnabled(forActionKey: actionKey) {
+            prompt += "\n\nAdditional style context:\n\(actionStyle)"
         }
         return prompt
     }
 
-    private func translateHTMLSystemPrompt(targetLanguage: String) -> String {
+    private func translateHTMLSystemPrompt(targetLanguage: String, actionKey: String?) -> String {
         var prompt = """
 You are a professional translator.
 
@@ -1071,12 +1111,15 @@ Rules:
 """
         let style = translationStyleContext.trimmingCharacters(in: .whitespacesAndNewlines)
         if !style.isEmpty {
-            prompt += "\n\nAdditional context/style to follow:\n\(style)"
+            prompt += "\n\nTranslation style context:\n\(style)"
+        }
+        if let actionStyle = actionStyleContextIfEnabled(forActionKey: actionKey) {
+            prompt += "\n\nAdditional style context:\n\(actionStyle)"
         }
         return prompt
     }
 
-    private func translateHTMLToMarkdownSystemPrompt(targetLanguage: String) -> String {
+    private func translateHTMLToMarkdownSystemPrompt(targetLanguage: String, actionKey: String?) -> String {
         var prompt = """
 You are a professional translator.
 
@@ -1092,7 +1135,10 @@ Rules:
 """
         let style = translationStyleContext.trimmingCharacters(in: .whitespacesAndNewlines)
         if !style.isEmpty {
-            prompt += "\n\nAdditional context/style to follow:\n\(style)"
+            prompt += "\n\nTranslation style context:\n\(style)"
+        }
+        if let actionStyle = actionStyleContextIfEnabled(forActionKey: actionKey) {
+            prompt += "\n\nAdditional style context:\n\(actionStyle)"
         }
         return prompt
     }
@@ -1130,8 +1176,8 @@ Rules:
 """
     }
 
-    private func buildHTMLTranslateRequestBody(html: String, targetLanguage: String, modelName: String) -> [String: Any] {
-        let systemPrompt = translateHTMLSystemPrompt(targetLanguage: targetLanguage)
+    private func buildHTMLTranslateRequestBody(html: String, targetLanguage: String, modelName: String, actionKey: String?) -> [String: Any] {
+        let systemPrompt = translateHTMLSystemPrompt(targetLanguage: targetLanguage, actionKey: actionKey)
 
         var requestBody: [String: Any] = [
             "model": modelName,
@@ -1155,8 +1201,8 @@ Rules:
         return requestBody
     }
 
-    private func buildHTMLToMarkdownTranslateRequestBody(html: String, targetLanguage: String, modelName: String) -> [String: Any] {
-        let systemPrompt = translateHTMLToMarkdownSystemPrompt(targetLanguage: targetLanguage)
+    private func buildHTMLToMarkdownTranslateRequestBody(html: String, targetLanguage: String, modelName: String, actionKey: String?) -> [String: Any] {
+        let systemPrompt = translateHTMLToMarkdownSystemPrompt(targetLanguage: targetLanguage, actionKey: actionKey)
 
         var requestBody: [String: Any] = [
             "model": modelName,
@@ -1203,6 +1249,24 @@ Rules:
         return requestBody
     }
 
+    private func actionStyleContextIfEnabled(forActionKey actionKey: String?) -> String? {
+        guard let actionKey, actionStyleContextActionKeys.contains(actionKey) else {
+            return nil
+        }
+        let trimmed = actionStyleContext.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return nil
+        }
+        return trimmed
+    }
+
+    private func appendActionStyleContext(to prompt: String, actionKey: String?) -> String {
+        guard let actionStyle = actionStyleContextIfEnabled(forActionKey: actionKey) else {
+            return prompt
+        }
+        return "\(prompt)\n\nAdditional style context:\n\(actionStyle)"
+    }
+
     private func buildHTMLGrammarFixRequestBody(html: String, modelName: String) -> [String: Any] {
         let systemPrompt = grammarHTMLSystemPrompt()
 
@@ -1228,8 +1292,8 @@ Rules:
         return requestBody
     }
 
-    private func buildRequestBody(text: String, targetLanguage: String, modelName: String) -> [String: Any] {
-        let systemPrompt = translateSystemPrompt(targetLanguage: targetLanguage)
+    private func buildRequestBody(text: String, targetLanguage: String, modelName: String, actionKey: String?) -> [String: Any] {
+        let systemPrompt = translateSystemPrompt(targetLanguage: targetLanguage, actionKey: actionKey)
 
         var requestBody: [String: Any] = [
             "model": modelName,
@@ -1644,16 +1708,17 @@ Rules:
 	        }
 
 	        let modelToUse = modelOverride ?? builtInTranslateModel
+	        let actionKey = TranslationService.builtInTranslateSelectionKey
 	        guard guardModelAvailable(modelToUse, completion: completion) else { return nil }
 	        switch modelToUse.provider {
 	        case .openAI:
-	            let requestBody = buildRequestBody(text: text, targetLanguage: targetLanguage, modelName: modelToUse.name)
+	            let requestBody = buildRequestBody(text: text, targetLanguage: targetLanguage, modelName: modelToUse.name, actionKey: actionKey)
 	            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
 	        case .gemini:
             return performGeminiGenerateContent(
                 apiKey: geminiAPIKey,
                 modelName: modelToUse.name,
-                systemPrompt: translateSystemPrompt(targetLanguage: targetLanguage),
+                systemPrompt: translateSystemPrompt(targetLanguage: targetLanguage, actionKey: actionKey),
                 userText: text,
                 maxOutputTokens: 1000,
                 temperature: 0.3,
@@ -1670,16 +1735,17 @@ Rules:
 	        }
 
 	        let modelToUse = modelOverride ?? builtInTranslateModel
+	        let actionKey = TranslationService.builtInTranslateSelectionKey
 	        guard guardModelAvailable(modelToUse, completion: completion) else { return nil }
 	        switch modelToUse.provider {
 	        case .openAI:
-	            let requestBody = buildHTMLTranslateRequestBody(html: html, targetLanguage: targetLanguage, modelName: modelToUse.name)
+	            let requestBody = buildHTMLTranslateRequestBody(html: html, targetLanguage: targetLanguage, modelName: modelToUse.name, actionKey: actionKey)
 	            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
 	        case .gemini:
             return performGeminiGenerateContent(
                 apiKey: geminiAPIKey,
                 modelName: modelToUse.name,
-                systemPrompt: translateHTMLSystemPrompt(targetLanguage: targetLanguage),
+                systemPrompt: translateHTMLSystemPrompt(targetLanguage: targetLanguage, actionKey: actionKey),
                 userText: html,
                 maxOutputTokens: 1500,
                 temperature: 0.2,
@@ -1696,16 +1762,17 @@ Rules:
         }
 
         let modelToUse = modelOverride ?? builtInTranslateModel
+        let actionKey = TranslationService.builtInTranslateSelectionKey
         guard guardModelAvailable(modelToUse, completion: completion) else { return nil }
         switch modelToUse.provider {
         case .openAI:
-            let requestBody = buildHTMLToMarkdownTranslateRequestBody(html: html, targetLanguage: targetLanguage, modelName: modelToUse.name)
+            let requestBody = buildHTMLToMarkdownTranslateRequestBody(html: html, targetLanguage: targetLanguage, modelName: modelToUse.name, actionKey: actionKey)
             return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
         case .gemini:
             return performGeminiGenerateContent(
                 apiKey: geminiAPIKey,
                 modelName: modelToUse.name,
-                systemPrompt: translateHTMLToMarkdownSystemPrompt(targetLanguage: targetLanguage),
+                systemPrompt: translateHTMLToMarkdownSystemPrompt(targetLanguage: targetLanguage, actionKey: actionKey),
                 userText: html,
                 maxOutputTokens: 1500,
                 temperature: 0.2,
@@ -1741,7 +1808,7 @@ Rules:
     }
 
     @discardableResult
-			    func runCustomAction(text: String, prompt: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+			    func runCustomAction(text: String, prompt: String, actionId: UUID?, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
 	        let normalizedText = text.normalizedPlainText()
 	        guard !normalizedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
 	            completion(.failure(TranslationError.emptyText))
@@ -1753,6 +1820,8 @@ Rules:
             completion(.failure(TranslationError.customPromptMissing))
             return nil
         }
+        let actionKey = actionId?.uuidString
+        let styledPrompt = appendActionStyleContext(to: trimmedPrompt, actionKey: actionKey)
 
 	        isTranslating = true
 	        errorMessage = nil
@@ -1764,7 +1833,7 @@ Rules:
 	        }
 	        switch modelToUse.provider {
 	        case .openAI:
-	            let requestBody = buildCustomActionRequestBody(text: normalizedText, prompt: trimmedPrompt, modelName: modelToUse.name)
+	            let requestBody = buildCustomActionRequestBody(text: normalizedText, prompt: styledPrompt, modelName: modelToUse.name)
 	            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody) { [weak self] result in
                 self?.isTranslating = false
                 switch result {
@@ -1787,7 +1856,7 @@ Rules:
             return performGeminiGenerateContent(
                 apiKey: geminiAPIKey,
                 modelName: modelToUse.name,
-                systemPrompt: trimmedPrompt,
+                systemPrompt: styledPrompt,
                 userText: normalizedText,
                 maxOutputTokens: 1500,
                 temperature: 0.2,
@@ -1814,7 +1883,7 @@ Rules:
 		    }
 
     @discardableResult
-    func runCustomActionHTML(html: String, prompt: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+    func runCustomActionHTML(html: String, prompt: String, actionId: UUID?, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
         let trimmedHTML = html.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedHTML.isEmpty else {
             completion(.failure(TranslationError.emptyText))
@@ -1826,6 +1895,7 @@ Rules:
             completion(.failure(TranslationError.customPromptMissing))
             return nil
         }
+        let actionKey = actionId?.uuidString
 
         isTranslating = true
         errorMessage = nil
@@ -1851,10 +1921,11 @@ Rules:
 - Edit/transform only the human-readable text content (text nodes) as needed by the task.
 - Preserve whitespace and line breaks as represented in the HTML.
 """
+        let styledPrompt = appendActionStyleContext(to: htmlPrompt, actionKey: actionKey)
 
         switch modelToUse.provider {
         case .openAI:
-            let requestBody = buildCustomActionRequestBody(text: trimmedHTML, prompt: htmlPrompt, modelName: modelToUse.name)
+            let requestBody = buildCustomActionRequestBody(text: trimmedHTML, prompt: styledPrompt, modelName: modelToUse.name)
             return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody) { [weak self] result in
                 self?.isTranslating = false
                 switch result {
@@ -1877,7 +1948,7 @@ Rules:
             return performGeminiGenerateContent(
                 apiKey: geminiAPIKey,
                 modelName: modelToUse.name,
-                systemPrompt: htmlPrompt,
+                systemPrompt: styledPrompt,
                 userText: trimmedHTML,
                 maxOutputTokens: 1500,
                 temperature: 0.2,
@@ -1904,7 +1975,7 @@ Rules:
     }
 
     @discardableResult
-    func runCustomActionMarkdownFromHTML(html: String, prompt: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+    func runCustomActionMarkdownFromHTML(html: String, prompt: String, actionId: UUID?, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
         let trimmedHTML = html.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedHTML.isEmpty else {
             completion(.failure(TranslationError.emptyText))
@@ -1916,6 +1987,7 @@ Rules:
             completion(.failure(TranslationError.customPromptMissing))
             return nil
         }
+        let actionKey = actionId?.uuidString
 
         isTranslating = true
         errorMessage = nil
@@ -1936,10 +2008,11 @@ System requirements (highest priority):
 Task:
 \(trimmedPrompt)
 """
+        let styledPrompt = appendActionStyleContext(to: markdownPrompt, actionKey: actionKey)
 
         switch modelToUse.provider {
         case .openAI:
-            let requestBody = buildCustomActionRequestBody(text: trimmedHTML, prompt: markdownPrompt, modelName: modelToUse.name)
+            let requestBody = buildCustomActionRequestBody(text: trimmedHTML, prompt: styledPrompt, modelName: modelToUse.name)
             return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody) { [weak self] result in
                 self?.isTranslating = false
                 switch result {
@@ -1962,7 +2035,7 @@ Task:
             return performGeminiGenerateContent(
                 apiKey: geminiAPIKey,
                 modelName: modelToUse.name,
-                systemPrompt: markdownPrompt,
+                systemPrompt: styledPrompt,
                 userText: trimmedHTML,
                 maxOutputTokens: 1500,
                 temperature: 0.2,

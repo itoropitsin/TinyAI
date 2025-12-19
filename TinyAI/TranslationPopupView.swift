@@ -463,7 +463,7 @@ struct TranslationPopupView: View {
 	            isPrimaryLoading = true
 	            primaryNetworkTask?.cancel()
 	            if let selectionHTML {
-	                primaryNetworkTask = translationService.runCustomActionMarkdownFromHTML(html: selectionHTML, prompt: resolvedPrompt, modelOverride: action.model) { result in
+	                primaryNetworkTask = translationService.runCustomActionMarkdownFromHTML(html: selectionHTML, prompt: resolvedPrompt, actionId: action.id, modelOverride: action.model) { result in
 	                    guard primaryRequestId == requestId else { return }
 	                    isPrimaryLoading = false
 		                    switch result {
@@ -480,7 +480,7 @@ struct TranslationPopupView: View {
                     }
                 }
 	            } else {
-	                primaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
+	                primaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, actionId: action.id, modelOverride: action.model) { result in
 	                    guard primaryRequestId == requestId else { return }
 	                    isPrimaryLoading = false
 	                    switch result {
@@ -512,7 +512,7 @@ struct TranslationPopupView: View {
 	            isSecondaryLoading = true
 	            secondaryNetworkTask?.cancel()
                 if let selectionHTML {
-                    secondaryNetworkTask = translationService.runCustomActionMarkdownFromHTML(html: selectionHTML, prompt: resolvedPrompt, modelOverride: action.model) { result in
+                    secondaryNetworkTask = translationService.runCustomActionMarkdownFromHTML(html: selectionHTML, prompt: resolvedPrompt, actionId: action.id, modelOverride: action.model) { result in
                         guard secondaryRequestId == requestId else { return }
                         isSecondaryLoading = false
                         secondaryRunningActionId = nil
@@ -530,7 +530,7 @@ struct TranslationPopupView: View {
                         }
                     }
                 } else {
-                    secondaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
+                    secondaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, actionId: action.id, modelOverride: action.model) { result in
                         guard secondaryRequestId == requestId else { return }
                         isSecondaryLoading = false
                         secondaryRunningActionId = nil

@@ -20,6 +20,8 @@ struct SettingsView: View {
     @State private var autoTranslateMainLanguage: String = "Russian"
     @State private var autoTranslateAdditionalLanguage: String = "English"
     @State private var translationStyleContext: String = ""
+    @State private var actionStyleContext: String = ""
+    @State private var actionStyleContextActionKeys: Set<String> = []
     @State private var popupHotkey: KeyboardShortcut = KeyboardShortcut(keyCode: 8, modifiers: [.command])
     @State private var popupHotkeyPressMode: PopupHotkeyPressMode = .doublePress
     @State private var popupHotkeyError: String?
@@ -43,6 +45,10 @@ struct SettingsView: View {
                 customActionsTab
                     .tag(SettingsTab.customActions)
                     .tabItem { Label("Custom Actions", systemImage: "bolt.fill") }
+
+                styleContextTab
+                    .tag(SettingsTab.styleContext)
+                    .tabItem { Label("Style Context", systemImage: "text.quote") }
 
                 hotkeysTab
                     .tag(SettingsTab.hotkeys)
@@ -76,6 +82,8 @@ struct SettingsView: View {
                     translationService.saveAutoTranslateMainLanguage(autoTranslateMainLanguage)
                     translationService.saveAutoTranslateAdditionalLanguage(autoTranslateAdditionalLanguage)
                     translationService.saveTranslationStyleContext(translationStyleContext)
+                    translationService.saveActionStyleContext(actionStyleContext)
+                    translationService.saveActionStyleContextActionKeys(actionStyleContextActionKeys)
 
                     if let error = keyboardMonitor.applyPopupHotkeySettings(shortcut: popupHotkey, pressMode: popupHotkeyPressMode) {
                         popupHotkeyError = error
@@ -106,6 +114,8 @@ struct SettingsView: View {
             autoTranslateMainLanguage = translationService.autoTranslateMainLanguage
             autoTranslateAdditionalLanguage = translationService.autoTranslateAdditionalLanguage
             translationStyleContext = translationService.translationStyleContext
+            actionStyleContext = translationService.actionStyleContext
+            actionStyleContextActionKeys = translationService.actionStyleContextActionKeys
             popupHotkey = keyboardMonitor.popupHotkey
             popupHotkeyPressMode = keyboardMonitor.popupHotkeyPressMode
             popupHotkeyError = nil
@@ -382,6 +392,31 @@ struct SettingsView: View {
         translationService.deleteModel(old)
     }
 
+    private var actionStyleOptions: [(key: String, title: String)] {
+        var options: [(key: String, title: String)] = [
+            (TranslationService.builtInTranslateSelectionKey, "Translate")
+        ]
+        options.append(contentsOf: customActions.enumerated().map { index, action in
+            let trimmed = action.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let title = trimmed.isEmpty ? "Action \(index + 1)" : trimmed
+            return (action.id.uuidString, title)
+        })
+        return options
+    }
+
+    private func actionStyleToggleBinding(for actionKey: String) -> Binding<Bool> {
+        Binding(
+            get: { actionStyleContextActionKeys.contains(actionKey) },
+            set: { isOn in
+                if isOn {
+                    actionStyleContextActionKeys.insert(actionKey)
+                } else {
+                    actionStyleContextActionKeys.remove(actionKey)
+                }
+            }
+        )
+    }
+
     private var hotkeysTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -592,6 +627,59 @@ struct SettingsView: View {
                             .frame(width: settingsControlColumnWidth, alignment: .leading)
                     }
                 }
+
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+        }
+    }
+
+    private var styleContextTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Additional style context")
+                        .font(.headline)
+
+                    HStack(alignment: .top, spacing: 12) {
+                        Text("Context")
+                            .foregroundColor(.secondary)
+                            .frame(width: settingsLabelColumnWidth, alignment: .leading)
+
+                        InsetTextEditor(text: $actionStyleContext)
+                            .frame(width: settingsControlColumnWidth, height: 120, alignment: .leading)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                            )
+                    }
+                    .padding(.vertical, 2)
+                    .hoverRowHighlight()
+
+                    HStack(alignment: .top, spacing: 12) {
+                        Color.clear
+                            .frame(width: settingsLabelColumnWidth, height: 1)
+                        Text("Optional: add tone guidance, preferred terminology, or translation examples.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .frame(width: settingsControlColumnWidth, alignment: .leading)
+                    }
+
+                    HStack(alignment: .top, spacing: 12) {
+                        Text("Applies to")
+                            .foregroundColor(.secondary)
+                            .frame(width: settingsLabelColumnWidth, alignment: .leading)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(actionStyleOptions, id: \.key) { option in
+                                Toggle(option.title, isOn: actionStyleToggleBinding(for: option.key))
+                            }
+                        }
+                        .frame(width: settingsControlColumnWidth, alignment: .leading)
+                    }
+                    .padding(.vertical, 2)
+                    .hoverRowHighlight()
+                }
             }
             .padding(.horizontal)
             .padding(.bottom, 8)
@@ -655,6 +743,7 @@ private enum SettingsTab: Hashable {
     case hotkeys
     case primaryActions
     case customActions
+    case styleContext
 }
 
 private struct APIAlert: Identifiable {

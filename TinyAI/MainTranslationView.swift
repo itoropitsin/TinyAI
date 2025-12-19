@@ -458,7 +458,7 @@ struct MainTranslationView: View {
             }
             isPrimaryLoading = true
             primaryNetworkTask?.cancel()
-            primaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
+            primaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, actionId: action.id, modelOverride: action.model) { result in
                 guard primaryRequestId == requestId else { return }
                 isPrimaryLoading = false
                 switch result {
@@ -483,7 +483,7 @@ struct MainTranslationView: View {
             }
             isSecondaryLoading = true
             secondaryNetworkTask?.cancel()
-            secondaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
+            secondaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, actionId: action.id, modelOverride: action.model) { result in
                 guard secondaryRequestId == requestId else { return }
                 isSecondaryLoading = false
                 secondaryRunningActionId = nil
