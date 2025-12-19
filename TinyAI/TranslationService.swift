@@ -211,13 +211,14 @@ class TranslationService: ObservableObject {
         }
     }
 
-    @Published var isTranslating: Bool = false
-    @Published var errorMessage: String?
-    
-    private let openAIChatCompletionsURLString = "https://api.openai.com/v1/chat/completions"
-    private let keychainService: String
-    private let session: URLSession
-    private let jsonDecoder = JSONDecoder()
+	    @Published var isTranslating: Bool = false
+	    @Published var errorMessage: String?
+	    
+	    private let openAIChatCompletionsURLString = "https://api.openai.com/v1/chat/completions"
+	    private let openAIResponsesURLString = "https://api.openai.com/v1/responses"
+	    private let keychainService: String
+	    private let session: URLSession
+	    private let jsonDecoder = JSONDecoder()
 
     private let apiKeyDefaultsKey = "OpenAIAPIKey"
     private let legacyModelDefaultsKey = "OpenAIModel"
@@ -643,9 +644,24 @@ Rules:
         llmModelVisibility[model.key] ?? true
     }
 
-    func isModelAvailable(_ model: LLMModel) -> Bool {
-        llmModelAvailability[model.key] ?? true
-    }
+	    func isModelAvailable(_ model: LLMModel) -> Bool {
+	        llmModelAvailability[model.key] ?? true
+	    }
+
+	    private func displayNameWithProvider(for model: LLMModel) -> String {
+	        if let entry = llmModels.first(where: { $0.model == model }) {
+	            return entry.displayNameWithProvider
+	        }
+	        return "\(model.provider.displayName): \(model.name)"
+	    }
+
+	    private func guardModelAvailable(_ model: LLMModel, completion: @escaping (Result<String, Error>) -> Void) -> Bool {
+	        guard isModelAvailable(model) else {
+	            completion(.failure(TranslationError.modelUnavailable(displayNameWithProvider(for: model))))
+	            return false
+	        }
+	        return true
+	    }
 
     func replacementCandidates(excluding model: LLMModel) -> [LLMModelEntry] {
         llmModels
@@ -1023,7 +1039,7 @@ Translate from Auto-detect to \(targetLanguage) naturally and clearly.
 Rules:
 - Preserve meaning over literal wording.
 - Keep tone (formal/informal), politeness, and emotional nuance.
-- Preserve formatting: line breaks, lists, numbering, emojis, code blocks, and URLs.
+- Preserve formatting exactly: keep all line breaks, paragraph boundaries, list structure, and leading indentation. Do not reflow or merge lines.
 - Do not add explanations, notes, or commentary.
 - Do not censor or soften content.
 - If a term is ambiguous, choose the most likely meaning from context. If truly unclear, keep the original term in parentheses after the translation.
@@ -1047,9 +1063,32 @@ Translate from Auto-detect to \(targetLanguage) naturally and clearly.
 Rules:
 - Preserve the HTML structure exactly: keep tags, attributes, links, code tags, lists, and nesting.
 - Translate only the human-readable text content (text nodes).
+- Preserve emphasis/formatting exactly as represented in HTML (e.g. keep <b>/<strong> tags and any inline font-weight styles; do not drop them).
 - Preserve whitespace and line breaks as represented in the HTML.
 - Do not add explanations, notes, or commentary.
-- Output only valid HTML (no Markdown, no code fences).
+- Output must be valid HTML and must start with '<' (no Markdown, no code fences, no plain text).
+- If you cannot comply with the rules, output the original input HTML unchanged.
+"""
+        let style = translationStyleContext.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !style.isEmpty {
+            prompt += "\n\nAdditional context/style to follow:\n\(style)"
+        }
+        return prompt
+    }
+
+    private func translateHTMLToMarkdownSystemPrompt(targetLanguage: String) -> String {
+        var prompt = """
+You are a professional translator.
+
+Input is HTML.
+Translate from Auto-detect to \(targetLanguage) naturally and clearly.
+
+Rules:
+- Use the HTML input only as formatting guidance.
+- Preserve lists, numbering, headings, and emphasis from the input (bold/italic/links) using Markdown.
+- Do not invent emphasis that wasn't present unless required for clarity.
+- Preserve line breaks and paragraph structure.
+- Output only Markdown (no HTML, no code fences).
 """
         let style = translationStyleContext.trimmingCharacters(in: .whitespacesAndNewlines)
         if !style.isEmpty {
@@ -1066,7 +1105,7 @@ Fix punctuation, grammar, and awkward or unclear constructions while preserving 
 Rules:
 - Keep the original language.
 - Preserve tone (formal/informal), voice, and intent.
-- Preserve formatting: line breaks, lists, numbering, emojis, code blocks, and URLs.
+- Preserve formatting exactly: keep all line breaks, paragraph boundaries, list structure, and leading indentation. Do not reflow or merge lines.
 - Do not add explanations, notes, or commentary.
 - Output only the corrected version of the text.
 """
@@ -1083,14 +1122,41 @@ Rules:
 - Keep the original language.
 - Preserve the HTML structure exactly: keep tags, attributes, links, code tags, lists, and nesting.
 - Edit only the human-readable text content (text nodes).
+- Preserve emphasis/formatting exactly as represented in HTML (e.g. keep <b>/<strong> tags and any inline font-weight styles; do not drop them).
 - Preserve whitespace and line breaks as represented in the HTML.
 - Do not add explanations, notes, or commentary.
-- Output only valid HTML (no Markdown, no code fences).
+- Output must be valid HTML and must start with '<' (no Markdown, no code fences, no plain text).
+- If you cannot comply with the rules, output the original input HTML unchanged.
 """
     }
 
     private func buildHTMLTranslateRequestBody(html: String, targetLanguage: String, modelName: String) -> [String: Any] {
         let systemPrompt = translateHTMLSystemPrompt(targetLanguage: targetLanguage)
+
+        var requestBody: [String: Any] = [
+            "model": modelName,
+            "messages": [
+                [
+                    "role": "system",
+                    "content": systemPrompt
+                ],
+                [
+                    "role": "user",
+                    "content": html
+                ]
+            ],
+            "max_completion_tokens": 1500
+        ]
+
+        if modelName == OpenAIModel.gpt52.rawValue {
+            requestBody["temperature"] = 0.2
+        }
+
+        return requestBody
+    }
+
+    private func buildHTMLToMarkdownTranslateRequestBody(html: String, targetLanguage: String, modelName: String) -> [String: Any] {
+        let systemPrompt = translateHTMLToMarkdownSystemPrompt(targetLanguage: targetLanguage)
 
         var requestBody: [String: Any] = [
             "model": modelName,
@@ -1212,34 +1278,108 @@ Rules:
         return requestBody
     }
 
-    private struct ChatCompletionResponse: Decodable {
-        struct Choice: Decodable {
-            struct Message: Decodable {
-                let content: String
-            }
-            let message: Message
-        }
-        let choices: [Choice]
-    }
+	    private struct ChatCompletionResponse: Decodable {
+	        struct Choice: Decodable {
+	            struct Message: Decodable {
+	                let content: String
+	            }
+	            let message: Message
+	        }
+	        let choices: [Choice]
+	    }
 
-    private struct APIErrorResponse: Decodable {
-        struct APIError: Decodable {
-            let message: String
-        }
-        let error: APIError
-    }
+	    private struct OpenAIResponsesResponse: Decodable {
+	        struct OutputItem: Decodable {
+	            struct ContentItem: Decodable {
+	                let type: String?
+	                let text: String?
+	            }
+	            let type: String?
+	            let content: [ContentItem]?
+	        }
+	        let output_text: String?
+	        let output: [OutputItem]?
+	    }
 
-    @discardableResult
-    private func performOpenAIChatCompletion(apiKey: String, requestBody: [String: Any], completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
-        guard !apiKey.isEmpty else {
-            completion(.failure(TranslationError.apiKeyMissing))
-            return nil
-        }
+	    private struct APIErrorResponse: Decodable {
+	        struct APIError: Decodable {
+	            let message: String
+	        }
+	        let error: APIError
+	    }
 
-        guard let url = URL(string: openAIChatCompletionsURLString) else {
-            completion(.failure(TranslationError.invalidURL))
-            return nil
-        }
+	    private func shouldUseOpenAIResponsesAPI(modelName: String) -> Bool {
+	        modelName.hasPrefix("gpt-5")
+	    }
+
+	    private func buildOpenAIResponsesBody(fromChatBody chatBody: [String: Any]) -> [String: Any]? {
+	        guard let model = chatBody["model"] as? String else { return nil }
+	        guard let messages = chatBody["messages"] as? [[String: Any]] else { return nil }
+
+	        let input: [[String: Any]] = messages.compactMap { message in
+	            guard let role = message["role"] as? String else { return nil }
+	            guard let content = message["content"] as? String else { return nil }
+	            return [
+	                "role": role,
+	                "content": [
+	                    [
+	                        "type": "input_text",
+	                        "text": content
+	                    ]
+	                ]
+	            ]
+	        }
+
+	        guard !input.isEmpty else { return nil }
+
+	        var body: [String: Any] = [
+	            "model": model,
+	            "input": input
+	        ]
+
+	        if let maxCompletion = chatBody["max_completion_tokens"] as? Int {
+	            body["max_output_tokens"] = maxCompletion
+	        }
+
+	        if let temperature = chatBody["temperature"] {
+	            body["temperature"] = temperature
+	        }
+
+	        return body
+	    }
+
+	    private func extractText(from response: OpenAIResponsesResponse) -> String? {
+	        if let outputText = response.output_text?.normalizedPlainText(),
+	           !outputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+	            return outputText
+	        }
+
+	        let text = (response.output ?? [])
+	            .flatMap { $0.content ?? [] }
+	            .compactMap { $0.text }
+	            .joined(separator: "\n")
+	            .normalizedPlainText()
+
+	        return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
+	    }
+
+	    @discardableResult
+	    private func performOpenAIChatCompletion(apiKey: String, requestBody: [String: Any], completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+	        guard !apiKey.isEmpty else {
+	            completion(.failure(TranslationError.apiKeyMissing))
+	            return nil
+	        }
+
+	        if let modelName = requestBody["model"] as? String,
+	           shouldUseOpenAIResponsesAPI(modelName: modelName),
+	           let responsesBody = buildOpenAIResponsesBody(fromChatBody: requestBody) {
+	            return performOpenAIResponses(apiKey: apiKey, requestBody: responsesBody, completion: completion)
+	        }
+
+	        guard let url = URL(string: openAIChatCompletionsURLString) else {
+	            completion(.failure(TranslationError.invalidURL))
+	            return nil
+	        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1284,15 +1424,81 @@ Rules:
                         completion(.failure(TranslationError.invalidResponse))
                         return
                     }
-                    completion(.success(content.trimmingCharacters(in: .whitespacesAndNewlines)))
+                    completion(.success(content.normalizedPlainText()))
                 } catch {
                     completion(.failure(error))
                 }
             }
         }
-        task.resume()
-        return task
-    }
+	        task.resume()
+	        return task
+	    }
+
+	    @discardableResult
+	    private func performOpenAIResponses(apiKey: String, requestBody: [String: Any], completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+	        guard !apiKey.isEmpty else {
+	            completion(.failure(TranslationError.apiKeyMissing))
+	            return nil
+	        }
+
+	        guard let url = URL(string: openAIResponsesURLString) else {
+	            completion(.failure(TranslationError.invalidURL))
+	            return nil
+	        }
+
+	        var request = URLRequest(url: url)
+	        request.httpMethod = "POST"
+	        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+	        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+	        do {
+	            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+	        } catch {
+	            completion(.failure(error))
+	            return nil
+	        }
+
+	        let task = session.dataTask(with: request) { [weak self] data, response, error in
+	            let statusCode = (response as? HTTPURLResponse)?.statusCode
+
+	            Task { @MainActor [weak self] in
+	                guard let self else { return }
+
+	                if let error {
+	                    completion(.failure(error))
+	                    return
+	                }
+
+	                guard let data else {
+	                    completion(.failure(TranslationError.noData))
+	                    return
+	                }
+
+	                if let statusCode, statusCode != 200 {
+	                    let message = self.parseOpenAIErrorMessage(from: data)
+	                    if let message {
+	                        completion(.failure(TranslationError.apiError(message)))
+	                    } else {
+	                        completion(.failure(TranslationError.httpError(statusCode)))
+	                    }
+	                    return
+	                }
+
+	                do {
+	                    let decoded = try self.jsonDecoder.decode(OpenAIResponsesResponse.self, from: data)
+	                    guard let content = self.extractText(from: decoded) else {
+	                        completion(.failure(TranslationError.invalidResponse))
+	                        return
+	                    }
+	                    completion(.success(content.normalizedPlainText()))
+	                } catch {
+	                    completion(.failure(error))
+	                }
+	            }
+	        }
+	        task.resume()
+	        return task
+	    }
 
     private struct GeminiGenerateContentResponse: Decodable {
         struct Candidate: Decodable {
@@ -1379,17 +1585,17 @@ Rules:
                     return
                 }
 
-                do {
-                    let decoded = try self.jsonDecoder.decode(GeminiGenerateContentResponse.self, from: data)
-                    let text = decoded.candidates?.first?.content?.parts?.compactMap(\.text).joined(separator: "\n")
-                    guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                        completion(.failure(TranslationError.invalidResponse))
-                        return
-                    }
-                    completion(.success(text.trimmingCharacters(in: .whitespacesAndNewlines)))
-                } catch {
-                    completion(.failure(error))
-                }
+	                do {
+	                    let decoded = try self.jsonDecoder.decode(GeminiGenerateContentResponse.self, from: data)
+	                    let text = (decoded.candidates?.first?.content?.parts?.compactMap(\.text).joined(separator: "\n") ?? "").normalizedPlainText()
+	                    guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+	                        completion(.failure(TranslationError.invalidResponse))
+	                        return
+	                    }
+	                    completion(.success(text))
+	                } catch {
+	                    completion(.failure(error))
+	                }
             }
         }
         task.resume()
@@ -1431,18 +1637,19 @@ Rules:
 		    }
 
     @discardableResult
-    func translateText(text: String, targetLanguage: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            completion(.failure(TranslationError.emptyText))
-            return nil
-        }
+	    func translateText(text: String, targetLanguage: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+	        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+	            completion(.failure(TranslationError.emptyText))
+	            return nil
+	        }
 
-        let modelToUse = modelOverride ?? builtInTranslateModel
-        switch modelToUse.provider {
-        case .openAI:
-            let requestBody = buildRequestBody(text: text, targetLanguage: targetLanguage, modelName: modelToUse.name)
-            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
-        case .gemini:
+	        let modelToUse = modelOverride ?? builtInTranslateModel
+	        guard guardModelAvailable(modelToUse, completion: completion) else { return nil }
+	        switch modelToUse.provider {
+	        case .openAI:
+	            let requestBody = buildRequestBody(text: text, targetLanguage: targetLanguage, modelName: modelToUse.name)
+	            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
+	        case .gemini:
             return performGeminiGenerateContent(
                 apiKey: geminiAPIKey,
                 modelName: modelToUse.name,
@@ -1456,18 +1663,19 @@ Rules:
     }
 
     @discardableResult
-    func translateHTML(html: String, targetLanguage: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
-        guard !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            completion(.failure(TranslationError.emptyText))
-            return nil
-        }
+	    func translateHTML(html: String, targetLanguage: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+	        guard !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+	            completion(.failure(TranslationError.emptyText))
+	            return nil
+	        }
 
-        let modelToUse = modelOverride ?? builtInTranslateModel
-        switch modelToUse.provider {
-        case .openAI:
-            let requestBody = buildHTMLTranslateRequestBody(html: html, targetLanguage: targetLanguage, modelName: modelToUse.name)
-            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
-        case .gemini:
+	        let modelToUse = modelOverride ?? builtInTranslateModel
+	        guard guardModelAvailable(modelToUse, completion: completion) else { return nil }
+	        switch modelToUse.provider {
+	        case .openAI:
+	            let requestBody = buildHTMLTranslateRequestBody(html: html, targetLanguage: targetLanguage, modelName: modelToUse.name)
+	            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
+	        case .gemini:
             return performGeminiGenerateContent(
                 apiKey: geminiAPIKey,
                 modelName: modelToUse.name,
@@ -1481,18 +1689,45 @@ Rules:
     }
 
     @discardableResult
-    func grammarFix(text: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    func translateHTMLToMarkdown(html: String, targetLanguage: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+        guard !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             completion(.failure(TranslationError.emptyText))
             return nil
         }
 
         let modelToUse = modelOverride ?? builtInTranslateModel
+        guard guardModelAvailable(modelToUse, completion: completion) else { return nil }
         switch modelToUse.provider {
         case .openAI:
-            let requestBody = buildGrammarFixRequestBody(text: text, modelName: modelToUse.name)
+            let requestBody = buildHTMLToMarkdownTranslateRequestBody(html: html, targetLanguage: targetLanguage, modelName: modelToUse.name)
             return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
         case .gemini:
+            return performGeminiGenerateContent(
+                apiKey: geminiAPIKey,
+                modelName: modelToUse.name,
+                systemPrompt: translateHTMLToMarkdownSystemPrompt(targetLanguage: targetLanguage),
+                userText: html,
+                maxOutputTokens: 1500,
+                temperature: 0.2,
+                completion: completion
+            )
+        }
+    }
+
+    @discardableResult
+	    func grammarFix(text: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+	        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+	            completion(.failure(TranslationError.emptyText))
+	            return nil
+	        }
+
+	        let modelToUse = modelOverride ?? builtInTranslateModel
+	        guard guardModelAvailable(modelToUse, completion: completion) else { return nil }
+	        switch modelToUse.provider {
+	        case .openAI:
+	            let requestBody = buildGrammarFixRequestBody(text: text, modelName: modelToUse.name)
+	            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
+	        case .gemini:
             return performGeminiGenerateContent(
                 apiKey: geminiAPIKey,
                 modelName: modelToUse.name,
@@ -1506,12 +1741,12 @@ Rules:
     }
 
     @discardableResult
-		    func runCustomAction(text: String, prompt: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
-        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedText.isEmpty else {
-            completion(.failure(TranslationError.emptyText))
-            return nil
-        }
+			    func runCustomAction(text: String, prompt: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+	        let normalizedText = text.normalizedPlainText()
+	        guard !normalizedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+	            completion(.failure(TranslationError.emptyText))
+	            return nil
+	        }
 
         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPrompt.isEmpty else {
@@ -1519,14 +1754,18 @@ Rules:
             return nil
         }
 
-        isTranslating = true
-        errorMessage = nil
+	        isTranslating = true
+	        errorMessage = nil
 
-        let modelToUse = modelOverride ?? builtInTranslateModel
-        switch modelToUse.provider {
-        case .openAI:
-            let requestBody = buildCustomActionRequestBody(text: trimmedText, prompt: trimmedPrompt, modelName: modelToUse.name)
-            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody) { [weak self] result in
+	        let modelToUse = modelOverride ?? builtInTranslateModel
+	        guard guardModelAvailable(modelToUse, completion: completion) else {
+	            isTranslating = false
+	            return nil
+	        }
+	        switch modelToUse.provider {
+	        case .openAI:
+	            let requestBody = buildCustomActionRequestBody(text: normalizedText, prompt: trimmedPrompt, modelName: modelToUse.name)
+	            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody) { [weak self] result in
                 self?.isTranslating = false
                 switch result {
                 case .success:
@@ -1543,13 +1782,13 @@ Rules:
                     }
                     completion(result)
                 }
-            }
-        case .gemini:
+	        }
+	        case .gemini:
             return performGeminiGenerateContent(
                 apiKey: geminiAPIKey,
                 modelName: modelToUse.name,
                 systemPrompt: trimmedPrompt,
-                userText: trimmedText,
+                userText: normalizedText,
                 maxOutputTokens: 1500,
                 temperature: 0.2,
                 completion: { [weak self] result in
@@ -1574,24 +1813,200 @@ Rules:
         }
 		    }
 
+    @discardableResult
+    func runCustomActionHTML(html: String, prompt: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+        let trimmedHTML = html.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedHTML.isEmpty else {
+            completion(.failure(TranslationError.emptyText))
+            return nil
+        }
+
+        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPrompt.isEmpty else {
+            completion(.failure(TranslationError.customPromptMissing))
+            return nil
+        }
+
+        isTranslating = true
+        errorMessage = nil
+
+        let modelToUse = modelOverride ?? builtInTranslateModel
+        guard guardModelAvailable(modelToUse, completion: completion) else {
+            isTranslating = false
+            return nil
+        }
+
+        let htmlPrompt = """
+System requirements (highest priority):
+- Input is HTML and output must be valid HTML that starts with '<'.
+- Preserve the HTML structure and formatting exactly (tags, attributes, links, lists, nesting).
+- Preserve emphasis/formatting exactly as represented in HTML (keep <b>/<strong> and inline font-weight; do not drop them).
+- If the task prompt asks for Markdown/plain text, ignore that part and still output HTML.
+- If you cannot comply with the rules, output the original input HTML unchanged.
+
+Task:
+\(trimmedPrompt)
+
+Rules:
+- Edit/transform only the human-readable text content (text nodes) as needed by the task.
+- Preserve whitespace and line breaks as represented in the HTML.
+"""
+
+        switch modelToUse.provider {
+        case .openAI:
+            let requestBody = buildCustomActionRequestBody(text: trimmedHTML, prompt: htmlPrompt, modelName: modelToUse.name)
+            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody) { [weak self] result in
+                self?.isTranslating = false
+                switch result {
+                case .success:
+                    completion(result)
+                case .failure(let error):
+                    if self?.isCancellationError(error) == true {
+                        completion(result)
+                        return
+                    }
+                    if let localizedError = error as? LocalizedError {
+                        self?.errorMessage = localizedError.errorDescription
+                    } else {
+                        self?.errorMessage = error.localizedDescription
+                    }
+                    completion(result)
+                }
+            }
+        case .gemini:
+            return performGeminiGenerateContent(
+                apiKey: geminiAPIKey,
+                modelName: modelToUse.name,
+                systemPrompt: htmlPrompt,
+                userText: trimmedHTML,
+                maxOutputTokens: 1500,
+                temperature: 0.2,
+                completion: { [weak self] result in
+                    self?.isTranslating = false
+                    switch result {
+                    case .success:
+                        completion(result)
+                    case .failure(let error):
+                        if self?.isCancellationError(error) == true {
+                            completion(result)
+                            return
+                        }
+                        if let localizedError = error as? LocalizedError {
+                            self?.errorMessage = localizedError.errorDescription
+                        } else {
+                            self?.errorMessage = error.localizedDescription
+                        }
+                        completion(result)
+                    }
+                }
+            )
+        }
+    }
+
+    @discardableResult
+    func runCustomActionMarkdownFromHTML(html: String, prompt: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+        let trimmedHTML = html.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedHTML.isEmpty else {
+            completion(.failure(TranslationError.emptyText))
+            return nil
+        }
+
+        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPrompt.isEmpty else {
+            completion(.failure(TranslationError.customPromptMissing))
+            return nil
+        }
+
+        isTranslating = true
+        errorMessage = nil
+
+        let modelToUse = modelOverride ?? builtInTranslateModel
+        guard guardModelAvailable(modelToUse, completion: completion) else {
+            isTranslating = false
+            return nil
+        }
+
+        let markdownPrompt = """
+System requirements (highest priority):
+- Input is HTML and output must be Markdown (no HTML, no code fences).
+- Use the HTML only as formatting guidance.
+- Preserve lists, numbering, headings, links, and emphasis from the input using Markdown.
+- Keep the output readable and neatly formatted.
+
+Task:
+\(trimmedPrompt)
+"""
+
+        switch modelToUse.provider {
+        case .openAI:
+            let requestBody = buildCustomActionRequestBody(text: trimmedHTML, prompt: markdownPrompt, modelName: modelToUse.name)
+            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody) { [weak self] result in
+                self?.isTranslating = false
+                switch result {
+                case .success:
+                    completion(result)
+                case .failure(let error):
+                    if self?.isCancellationError(error) == true {
+                        completion(result)
+                        return
+                    }
+                    if let localizedError = error as? LocalizedError {
+                        self?.errorMessage = localizedError.errorDescription
+                    } else {
+                        self?.errorMessage = error.localizedDescription
+                    }
+                    completion(result)
+                }
+            }
+        case .gemini:
+            return performGeminiGenerateContent(
+                apiKey: geminiAPIKey,
+                modelName: modelToUse.name,
+                systemPrompt: markdownPrompt,
+                userText: trimmedHTML,
+                maxOutputTokens: 1500,
+                temperature: 0.2,
+                completion: { [weak self] result in
+                    self?.isTranslating = false
+                    switch result {
+                    case .success:
+                        completion(result)
+                    case .failure(let error):
+                        if self?.isCancellationError(error) == true {
+                            completion(result)
+                            return
+                        }
+                        if let localizedError = error as? LocalizedError {
+                            self?.errorMessage = localizedError.errorDescription
+                        } else {
+                            self?.errorMessage = error.localizedDescription
+                        }
+                        completion(result)
+                    }
+                }
+            )
+        }
+    }
+
 	    private func isCancellationError(_ error: Error) -> Bool {
 	        let nsError = error as NSError
 	        return nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
 	    }
 
     @discardableResult
-    func grammarFixHTML(html: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
-        guard !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            completion(.failure(TranslationError.emptyText))
-            return nil
-        }
+	    func grammarFixHTML(html: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+	        guard !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+	            completion(.failure(TranslationError.emptyText))
+	            return nil
+	        }
 
-        let modelToUse = modelOverride ?? builtInTranslateModel
-        switch modelToUse.provider {
-        case .openAI:
-            let requestBody = buildHTMLGrammarFixRequestBody(html: html, modelName: modelToUse.name)
-            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
-        case .gemini:
+	        let modelToUse = modelOverride ?? builtInTranslateModel
+	        guard guardModelAvailable(modelToUse, completion: completion) else { return nil }
+	        switch modelToUse.provider {
+	        case .openAI:
+	            let requestBody = buildHTMLGrammarFixRequestBody(html: html, modelName: modelToUse.name)
+	            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
+	        case .gemini:
             return performGeminiGenerateContent(
                 apiKey: geminiAPIKey,
                 modelName: modelToUse.name,
@@ -1605,15 +2020,16 @@ Rules:
     }
 }
 
-enum TranslationError: LocalizedError {
-    case apiKeyMissing
-    case emptyText
-    case customPromptMissing
-    case invalidURL
-    case noData
-    case invalidResponse
-    case httpError(Int)
-    case apiError(String)
+	enum TranslationError: LocalizedError {
+	    case apiKeyMissing
+	    case emptyText
+	    case customPromptMissing
+	    case modelUnavailable(String)
+	    case invalidURL
+	    case noData
+	    case invalidResponse
+	    case httpError(Int)
+	    case apiError(String)
     
     var errorDescription: String? {
         switch self {
@@ -1621,12 +2037,14 @@ enum TranslationError: LocalizedError {
             return "API key is not set"
         case .emptyText:
             return "Text to translate is empty"
-        case .customPromptMissing:
-            return "Custom prompt is not set"
-        case .invalidURL:
-            return "Invalid URL"
-        case .noData:
-            return "No data received from the server"
+	        case .customPromptMissing:
+	            return "Custom prompt is not set"
+	        case .modelUnavailable(let model):
+	            return "Model is not available: \(model). Refresh models or choose another one in Settings."
+	        case .invalidURL:
+	            return "Invalid URL"
+	        case .noData:
+	            return "No data received from the server"
         case .invalidResponse:
             return "Invalid response format"
         case .httpError(let code):

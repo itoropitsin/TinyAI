@@ -370,8 +370,8 @@ struct TranslationPopupView: View {
     }
 
 	    private func processText() {
-	        let trimmed = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
-	        guard !trimmed.isEmpty else {
+	        let normalized = selectedText.normalizedPlainText()
+	        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             primaryNetworkTask?.cancel()
             secondaryNetworkTask?.cancel()
             primaryOutputText = ""
@@ -384,34 +384,34 @@ struct TranslationPopupView: View {
 	            return
 	        }
 
-	        processPrimaryText(using: trimmed)
-	        processSecondaryText(using: trimmed)
+	        processPrimaryText(using: normalized)
+	        processSecondaryText(using: normalized)
 	    }
 
 	    private func processPrimaryText() {
-	        let trimmed = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
-	        guard !trimmed.isEmpty else { return }
-	        processPrimaryText(using: trimmed)
+	        let normalized = selectedText.normalizedPlainText()
+	        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+	        processPrimaryText(using: normalized)
 	    }
 
-	    private func processPrimaryText(using trimmed: String) {
+	    private func processPrimaryText(using text: String) {
 	        let primaryAction = translationService.starredPrimaryCustomAction()
 	        if translationService.isStarredPrimaryBuiltInTranslate {
-	            runBuiltInTranslate(target: .primary, text: trimmed)
+	            runBuiltInTranslate(target: .primary, text: text)
 	        } else {
-	            runAction(primaryAction, target: .primary, text: trimmed)
+	            runAction(primaryAction, target: .primary, text: text)
 	        }
 	    }
 
 	    private func processSecondaryText() {
-	        let trimmed = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
-	        guard !trimmed.isEmpty else { return }
-	        processSecondaryText(using: trimmed)
+	        let normalized = selectedText.normalizedPlainText()
+	        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+	        processSecondaryText(using: normalized)
 	    }
 
-	    private func processSecondaryText(using trimmed: String) {
+	    private func processSecondaryText(using text: String) {
 	        let secondaryAction = translationService.customActions.first(where: { $0.id == translationService.starredSecondaryActionId })
-	        runAction(secondaryAction, target: .secondary, text: trimmed)
+	        runAction(secondaryAction, target: .secondary, text: text)
 	    }
 
 	    private enum OutputTarget {
@@ -447,33 +447,54 @@ struct TranslationPopupView: View {
         let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: translationService.preferredTargetLanguage)
         let resolvedPrompt = prompt.replacingOccurrences(of: "{{targetLanguage}}", with: resolvedTargetLanguage)
         let emptyPromptMessage = "Configure the prompt and model for this action in Settings."
+        let selectionHTML = selectionHTMLForModel()
 
-        switch target {
-        case .primary:
-            primaryTitle = title
-            let requestId = UUID()
-            primaryRequestId = requestId
+	        switch target {
+	        case .primary:
+	            primaryTitle = title
+	            let requestId = UUID()
+	            primaryRequestId = requestId
             if resolvedPrompt.isEmpty {
                 isPrimaryLoading = false
                 primaryOutputText = emptyPromptMessage
                 primaryOutputPayload = RichTextPayload(plain: emptyPromptMessage, html: nil, rtf: nil)
                 return
             }
-            isPrimaryLoading = true
-            primaryNetworkTask?.cancel()
-            primaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
-                guard primaryRequestId == requestId else { return }
-                isPrimaryLoading = false
-                switch result {
-                case .success(let text):
-                    primaryOutputText = text
-                    primaryOutputPayload = RichTextPayload(plain: text, html: nil, rtf: nil)
-                case .failure(let error):
-                    if (error as? URLError)?.code == .cancelled { return }
-                    primaryOutputText = ""
-                    primaryOutputPayload = nil
-                    translationService.errorMessage = error.localizedDescription
-                    showError = true
+	            isPrimaryLoading = true
+	            primaryNetworkTask?.cancel()
+	            if let selectionHTML {
+	                primaryNetworkTask = translationService.runCustomActionMarkdownFromHTML(html: selectionHTML, prompt: resolvedPrompt, modelOverride: action.model) { result in
+	                    guard primaryRequestId == requestId else { return }
+	                    isPrimaryLoading = false
+		                    switch result {
+		                    case .success(let markdown):
+		                        let normalized = RichTextConverter.normalizedMarkdown(markdown)
+		                        primaryOutputText = normalized
+		                        primaryOutputPayload = RichTextConverter.payload(fromMarkdown: normalized)
+		                    case .failure(let error):
+		                        if (error as? URLError)?.code == .cancelled { return }
+		                        primaryOutputText = ""
+		                        primaryOutputPayload = nil
+                        translationService.errorMessage = error.localizedDescription
+                        showError = true
+                    }
+                }
+	            } else {
+	                primaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
+	                    guard primaryRequestId == requestId else { return }
+	                    isPrimaryLoading = false
+	                    switch result {
+	                    case .success(let text):
+	                        let normalized = RichTextConverter.normalizedMarkdown(text)
+	                        primaryOutputText = normalized
+	                        primaryOutputPayload = RichTextConverter.payload(fromMarkdown: normalized)
+	                    case .failure(let error):
+	                        if (error as? URLError)?.code == .cancelled { return }
+	                        primaryOutputText = ""
+	                        primaryOutputPayload = nil
+                        translationService.errorMessage = error.localizedDescription
+                        showError = true
+                    }
                 }
             }
 	        case .secondary:
@@ -490,22 +511,43 @@ struct TranslationPopupView: View {
 	            }
 	            isSecondaryLoading = true
 	            secondaryNetworkTask?.cancel()
-	            secondaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
-	                guard secondaryRequestId == requestId else { return }
-	                isSecondaryLoading = false
-                    secondaryRunningActionId = nil
-	                switch result {
-	                case .success(let text):
-	                    secondaryOutputText = text
-	                    secondaryOutputPayload = RichTextPayload(plain: text, html: nil, rtf: nil)
-                case .failure(let error):
-                    if (error as? URLError)?.code == .cancelled { return }
-                    secondaryOutputText = ""
-                    secondaryOutputPayload = nil
-                    translationService.errorMessage = error.localizedDescription
-                    showError = true
+                if let selectionHTML {
+                    secondaryNetworkTask = translationService.runCustomActionMarkdownFromHTML(html: selectionHTML, prompt: resolvedPrompt, modelOverride: action.model) { result in
+                        guard secondaryRequestId == requestId else { return }
+                        isSecondaryLoading = false
+                        secondaryRunningActionId = nil
+		                        switch result {
+		                        case .success(let markdown):
+		                            let normalized = RichTextConverter.normalizedMarkdown(markdown)
+		                            secondaryOutputText = normalized
+		                            secondaryOutputPayload = RichTextConverter.payload(fromMarkdown: normalized)
+		                        case .failure(let error):
+		                            if (error as? URLError)?.code == .cancelled { return }
+		                            secondaryOutputText = ""
+		                            secondaryOutputPayload = nil
+                            translationService.errorMessage = error.localizedDescription
+                            showError = true
+                        }
+                    }
+                } else {
+                    secondaryNetworkTask = translationService.runCustomAction(text: text, prompt: resolvedPrompt, modelOverride: action.model) { result in
+                        guard secondaryRequestId == requestId else { return }
+                        isSecondaryLoading = false
+                        secondaryRunningActionId = nil
+                        switch result {
+                        case .success(let text):
+                            let normalized = RichTextConverter.normalizedMarkdown(text)
+                            secondaryOutputText = normalized
+                            secondaryOutputPayload = RichTextConverter.payload(fromMarkdown: normalized)
+                        case .failure(let error):
+                            if (error as? URLError)?.code == .cancelled { return }
+                            secondaryOutputText = ""
+                            secondaryOutputPayload = nil
+                            translationService.errorMessage = error.localizedDescription
+                            showError = true
+                        }
+                    }
                 }
-            }
         }
     }
 
@@ -520,22 +562,59 @@ struct TranslationPopupView: View {
         isPrimaryLoading = true
         primaryNetworkTask?.cancel()
 
-        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: translationService.preferredTargetLanguage)
-        primaryNetworkTask = translationService.translateText(text: text, targetLanguage: resolvedTargetLanguage, modelOverride: translationService.builtInTranslateModel) { result in
-            guard primaryRequestId == requestId else { return }
-            isPrimaryLoading = false
-            switch result {
-            case .success(let text):
-                primaryOutputText = text
-                primaryOutputPayload = RichTextPayload(plain: text, html: nil, rtf: nil)
-            case .failure(let error):
-                if (error as? URLError)?.code == .cancelled { return }
-                primaryOutputText = ""
-                primaryOutputPayload = nil
-                translationService.errorMessage = error.localizedDescription
-                showError = true
+	        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: translationService.preferredTargetLanguage)
+	        if let html = selectionHTMLForModel() {
+	            primaryNetworkTask = translationService.translateHTMLToMarkdown(html: html, targetLanguage: resolvedTargetLanguage, modelOverride: translationService.builtInTranslateModel) { result in
+	                guard primaryRequestId == requestId else { return }
+	                isPrimaryLoading = false
+		                switch result {
+		                case .success(let markdown):
+		                    let normalized = RichTextConverter.normalizedMarkdown(markdown)
+		                    primaryOutputText = normalized
+		                    primaryOutputPayload = RichTextConverter.payload(fromMarkdown: normalized)
+		                case .failure(let error):
+		                    if (error as? URLError)?.code == .cancelled { return }
+		                    primaryOutputText = ""
+		                    primaryOutputPayload = nil
+                    translationService.errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+        } else {
+	            primaryNetworkTask = translationService.translateText(text: text, targetLanguage: resolvedTargetLanguage, modelOverride: translationService.builtInTranslateModel) { result in
+	                guard primaryRequestId == requestId else { return }
+	                isPrimaryLoading = false
+	                switch result {
+	                case .success(let text):
+	                    let normalized = RichTextConverter.normalizedMarkdown(text)
+	                    primaryOutputText = normalized
+	                    primaryOutputPayload = RichTextConverter.payload(fromMarkdown: normalized)
+	                case .failure(let error):
+	                    if (error as? URLError)?.code == .cancelled { return }
+	                    primaryOutputText = ""
+	                    primaryOutputPayload = nil
+                    translationService.errorMessage = error.localizedDescription
+                    showError = true
+                }
             }
         }
+    }
+
+    private func selectionHTMLForModel() -> String? {
+        guard let selectedPayload else { return nil }
+
+        if let html = selectedPayload.html?.trimmingCharacters(in: .whitespacesAndNewlines), !html.isEmpty {
+            return RichTextHTMLSanitizer.sanitize(html)
+        }
+
+        if selectedPayload.rtf != nil {
+            let attributed = RichTextConverter.attributedString(from: selectedPayload)
+            let html = RichTextConverter.html(from: attributed)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let html, !html.isEmpty else { return nil }
+            return RichTextHTMLSanitizer.sanitize(html)
+        }
+
+        return nil
     }
 
     private func runSecondaryAction(at index: Int) {
@@ -543,8 +622,8 @@ struct TranslationPopupView: View {
             return
         }
 
-        let trimmed = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
+        let normalized = selectedText.normalizedPlainText()
+        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return
         }
 
@@ -552,7 +631,7 @@ struct TranslationPopupView: View {
             if isSecondaryLoading, secondaryRunningActionId == action.id {
                 return
             }
-	        runAction(action, target: .secondary, text: trimmed)
+	        runAction(action, target: .secondary, text: normalized)
 	    }
 
     private func replaceText(with payload: RichTextPayload) {

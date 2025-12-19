@@ -57,4 +57,12 @@ struct TinyAITests {
             #expect(containsCyrillic(out))
         }
     }
+
+    @Test func normalizedMarkdown_preservesIndentation_whenConvertingBullets() {
+        let input = "  • First\n\t• Second\n    • Third"
+        let output = RichTextConverter.normalizedMarkdown(input)
+        #expect(output.contains("  - First"))
+        #expect(output.contains("\t- Second"))
+        #expect(output.contains("    - Third"))
+    }
 }

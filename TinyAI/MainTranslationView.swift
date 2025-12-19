@@ -346,8 +346,8 @@ struct MainTranslationView: View {
 
     private func copyTextToClipboard(_ text: String) {
         let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        let payload = RichTextConverter.payload(fromMarkdown: RichTextConverter.normalizedMarkdown(text))
+        RichTextPasteboard.write(payload, to: pasteboard)
     }
 
     private func replaceSourceText(with text: String) {
@@ -355,8 +355,8 @@ struct MainTranslationView: View {
     }
 
 	    private func processText() {
-	        let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
-	        guard !trimmed.isEmpty else {
+	        let normalized = sourceText.normalizedPlainText()
+	        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             primaryNetworkTask?.cancel()
             secondaryNetworkTask?.cancel()
             primaryOutputText = ""
@@ -367,34 +367,34 @@ struct MainTranslationView: View {
 	            return
 	        }
 
-	        processPrimaryText(using: trimmed)
-	        processSecondaryText(using: trimmed)
+	        processPrimaryText(using: normalized)
+	        processSecondaryText(using: normalized)
 	    }
 
 	    private func processPrimaryText() {
-	        let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
-	        guard !trimmed.isEmpty else { return }
-	        processPrimaryText(using: trimmed)
+	        let normalized = sourceText.normalizedPlainText()
+	        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+	        processPrimaryText(using: normalized)
 	    }
 
-	    private func processPrimaryText(using trimmed: String) {
+	    private func processPrimaryText(using text: String) {
 	        let primaryAction = translationService.starredPrimaryCustomAction()
 	        if translationService.isStarredPrimaryBuiltInTranslate {
-	            runBuiltInTranslate(target: .primary, text: trimmed)
+	            runBuiltInTranslate(target: .primary, text: text)
 	        } else {
-	            runAction(primaryAction, target: .primary, text: trimmed)
+	            runAction(primaryAction, target: .primary, text: text)
 	        }
 	    }
 
 	    private func processSecondaryText() {
-	        let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
-	        guard !trimmed.isEmpty else { return }
-	        processSecondaryText(using: trimmed)
+	        let normalized = sourceText.normalizedPlainText()
+	        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+	        processSecondaryText(using: normalized)
 	    }
 
-	    private func processSecondaryText(using trimmed: String) {
+	    private func processSecondaryText(using text: String) {
 	        let secondaryAction = translationService.customActions.first(where: { $0.id == translationService.starredSecondaryActionId })
-	        runAction(secondaryAction, target: .secondary, text: trimmed)
+	        runAction(secondaryAction, target: .secondary, text: text)
 	    }
 
 	    private func refreshTitles() {
@@ -504,8 +504,8 @@ struct MainTranslationView: View {
             return
         }
 
-        let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
+        let normalized = sourceText.normalizedPlainText()
+        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return
         }
 
@@ -513,6 +513,6 @@ struct MainTranslationView: View {
         if isSecondaryLoading, secondaryRunningActionId == action.id {
             return
         }
-        runAction(action, target: .secondary, text: trimmed)
+        runAction(action, target: .secondary, text: normalized)
     }
 }

@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Foundation
 
 struct MarkdownTextView: NSViewRepresentable {
     let markdown: String
@@ -64,9 +65,12 @@ struct MarkdownTextView: NSViewRepresentable {
 
         if #available(macOS 12.0, *) {
             do {
+                var options = AttributedString.MarkdownParsingOptions()
+                options.interpretedSyntax = .inlineOnlyPreservingWhitespace
+                options.failurePolicy = .returnPartiallyParsedIfPossible
                 let prepared = preparedMarkdown(content)
-                let attributed = try NSAttributedString(markdown: Data(prepared.utf8))
-                textView.textStorage?.setAttributedString(normalizedMarkdownFonts(attributed))
+                let attributed = try AttributedString(markdown: prepared, options: options)
+                textView.textStorage?.setAttributedString(normalizedMarkdownFonts(NSAttributedString(attributed)))
             } catch {
                 textView.textStorage?.setAttributedString(NSAttributedString(string: content))
             }
@@ -76,48 +80,9 @@ struct MarkdownTextView: NSViewRepresentable {
     }
 
     private func preparedMarkdown(_ raw: String) -> String {
-        let normalizedNewlines = raw.replacingOccurrences(of: "\r\n", with: "\n")
-
-        var output: String = ""
-        output.reserveCapacity(normalizedNewlines.count + normalizedNewlines.count / 20)
-
-        var isInCodeFence = false
-        normalizedNewlines.enumerateLines { line, _ in
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
-                isInCodeFence.toggle()
-                output.append(line)
-                output.append("\n")
-                return
-            }
-
-            guard !isInCodeFence else {
-                output.append(line)
-                output.append("\n")
-                return
-            }
-
-            if trimmed.isEmpty {
-                output.append("\n")
-                return
-            }
-
-            if line.hasSuffix("  ") {
-                output.append(line)
-                output.append("\n")
-                return
-            }
-
-            output.append(line)
-            output.append("  \n")
-        }
-
-        if raw.hasSuffix("\n"), output.hasSuffix("  \n") {
-            output.removeLast(3)
-            output.append("\n")
-        }
-
-        return output
+        raw
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
     }
 
     private func normalizedMarkdownFonts(_ attributed: NSAttributedString) -> NSAttributedString {

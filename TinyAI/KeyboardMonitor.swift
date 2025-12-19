@@ -486,13 +486,13 @@ class KeyboardMonitor: ObservableObject {
         if attributedResult == .success, let attributed = attributedValue as? NSAttributedString, !attributed.string.isEmpty {
             let html = RichTextConverter.html(from: attributed)
             let rtf = RichTextConverter.rtf(from: attributed)
-            return RichTextPayload(plain: attributed.string, html: html, rtf: rtf)
+            return RichTextPayload(plain: attributed.string.normalizedPlainText(), html: html, rtf: rtf)
         }
 
         var selectedText: AnyObject?
         let textResult = AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selectedText)
         if textResult == .success, let text = selectedText as? String, !text.isEmpty {
-            return RichTextPayload(plain: text, html: nil, rtf: nil)
+            return RichTextPayload(plain: text.normalizedPlainText(), html: nil, rtf: nil)
         }
 
         return nil
