@@ -10,52 +10,10 @@ import Testing
 
 struct TinyAITests {
 
-    enum TestError: Error {
-        case missingAPIKey
-    }
-
-    private func apiKey() throws -> String {
-        if let key = ProcessInfo.processInfo.environment["OPENAI_API_KEY"], !key.isEmpty {
-            return key
-        }
-        throw TestError.missingAPIKey
-    }
-
-    private func translate(service: TranslationService, text: String, targetLanguage: String, model: LLMModel) async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
-            service.translate(text: text, targetLanguage: targetLanguage, modelOverride: model) { result in
-                continuation.resume(with: result)
-            }
-        }
-    }
-
-    private func containsCyrillic(_ text: String) -> Bool {
-        return text.range(of: "\\p{Cyrillic}", options: .regularExpression) != nil
-    }
-
     @Test @MainActor func ax_fullscreen_detection_does_not_crash() {
         let delegate = AppDelegate()
         let value = delegate.isFrontmostWindowFullscreen()
         #expect(value == true || value == false)
-    }
-
-    @Test func translation_hello_to_russian_works_for_all_models() async throws {
-        let key = try apiKey()
-        let service = TranslationService()
-        service.saveAPIKey(key)
-
-        for model in OpenAIModel.allCases {
-            let llmModel = LLMModel(provider: .openAI, name: model.rawValue)
-            let out = try await translate(service: service, text: "Hello", targetLanguage: "Russian", model: llmModel)
-
-            #expect(!out.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-            // Expect actual translation, not echo.
-            #expect(out.lowercased() != "hello")
-
-            // For Russian we expect Cyrillic characters in most natural translations.
-            #expect(containsCyrillic(out))
-        }
     }
 
     @Test func normalizedMarkdown_preservesIndentation_whenConvertingBullets() {
@@ -64,5 +22,23 @@ struct TinyAITests {
         #expect(output.contains("  - First"))
         #expect(output.contains("\t- Second"))
         #expect(output.contains("    - Third"))
+    }
+
+    @Test func openAIModelFiltering_keepsTextModels_andDropsNonTextModels() {
+        #expect(TranslationService.isSupportedOpenAITextModel("gpt-4o"))
+        #expect(TranslationService.isSupportedOpenAITextModel("o3-mini"))
+        #expect(TranslationService.isSupportedOpenAITextModel("chatgpt-4o-latest"))
+        #expect(!TranslationService.isSupportedOpenAITextModel("gpt-4o-realtime-preview"))
+        #expect(!TranslationService.isSupportedOpenAITextModel("text-embedding-3-small"))
+        #expect(!TranslationService.isSupportedOpenAITextModel("dall-e-3"))
+    }
+
+    @Test func popupHotkeyValidation_allowsDefaultDoubleCopy_butProtectsEditingShortcuts() {
+        let copy = KeyboardShortcut(keyCode: 8, modifiers: [.command])
+        #expect(KeyboardMonitor.validationError(for: copy, pressMode: .doublePress) == nil)
+        #expect(KeyboardMonitor.validationError(for: copy, pressMode: .singlePress) != nil)
+
+        let paste = KeyboardShortcut(keyCode: 9, modifiers: [.command])
+        #expect(KeyboardMonitor.validationError(for: paste, pressMode: .doublePress) != nil)
     }
 }

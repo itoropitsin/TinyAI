@@ -27,7 +27,7 @@ struct HelpView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     GroupBox("What TinyAI does") {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("TinyAI is a small macOS utility that sends your text to OpenAI and shows the result in two panels:")
+                            Text("TinyAI is a small macOS utility that sends your text to OpenAI or Google Gemini and shows the result in two panels:")
                             Text("• Starred 1: your primary action (for example, “Translate”).")
                             Text("• Starred 2: a custom action you choose (plus extra buttons to run other custom actions).")
                         }
@@ -36,7 +36,7 @@ struct HelpView: View {
 
                     GroupBox("Getting started") {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("1) Open Settings and paste your OpenAI API key.")
+                            Text("1) Open Settings and paste an OpenAI or Google Gemini API key.")
                             Text("2) Choose what “Starred 1” does (built‑in Translate or one of your custom actions).")
                             Text("3) Create custom actions: give each button a title, pick a model, and write a short prompt.")
                             Text("Tip: In the main window you can trigger custom actions with ⌘1, ⌘2, ⌘3, …")
@@ -75,7 +75,7 @@ struct HelpView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    Text("Your API key is stored locally on your Mac. Requests are sent to OpenAI only when you run an action.")
+                    Text("Your API keys are stored locally in macOS Keychain. Requests are sent when an action runs; editing text in the main window starts its configured actions after a short pause. Settings changes are applied after you press Save.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

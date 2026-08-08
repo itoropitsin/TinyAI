@@ -124,13 +124,17 @@ class TranslationService: ObservableObject {
 
     @Published var apiKey: String = "" {
         didSet {
-            persistAPIKey(apiKey, provider: .openAI)
+            if !persistAPIKey(apiKey, provider: .openAI), !apiKey.isEmpty {
+                errorMessage = "Could not save the OpenAI API key in Keychain."
+            }
         }
     }
 
     @Published var geminiAPIKey: String = "" {
         didSet {
-            persistAPIKey(geminiAPIKey, provider: .gemini)
+            if !persistAPIKey(geminiAPIKey, provider: .gemini), !geminiAPIKey.isEmpty {
+                errorMessage = "Could not save the Gemini API key in Keychain."
+            }
         }
     }
 
@@ -248,6 +252,8 @@ class TranslationService: ObservableObject {
     private let llmModelsDefaultsKey = "LLMModelsV1"
     private let llmModelVisibilityDefaultsKey = "LLMModelVisibilityV1"
     private let llmModelAvailabilityDefaultsKey = "LLMModelAvailabilityV1"
+    private let deletedLLMModelsDefaultsKey = "DeletedLLMModelsV1"
+    private var deletedModelKeys: Set<String> = []
     
     init() {
         keychainService = Bundle.main.bundleIdentifier ?? "TinyAI"
@@ -264,6 +270,7 @@ class TranslationService: ObservableObject {
         llmModels = loadModelsFromDefaults()
         llmModelVisibility = loadModelVisibilityFromDefaults()
         llmModelAvailability = loadModelAvailabilityFromDefaults()
+        deletedModelKeys = Set(UserDefaults.standard.stringArray(forKey: deletedLLMModelsDefaultsKey) ?? [])
         normalizeModelsAndVisibility()
 
         preferredTargetLanguage = normalizedLanguageSelection(
@@ -308,7 +315,11 @@ class TranslationService: ObservableObject {
     }
     
     func saveAPIKey(_ key: String) {
-        apiKey = key
+        saveAPIKey(key, for: .openAI)
+    }
+
+    func saveAPIKey(_ key: String, for provider: LLMProvider) {
+        setAPIKey(key.trimmingCharacters(in: .whitespacesAndNewlines), for: provider)
     }
 
     func apiKey(for provider: LLMProvider) -> String {
@@ -342,6 +353,16 @@ class TranslationService: ObservableObject {
         }
     }
 
+    /// Validate a draft key without changing the saved key or model catalog.
+    @MainActor
+    func validateAPIKeyOnly(_ key: String, for provider: LLMProvider) async -> Result<Void, LLMKeyValidationError> {
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return .success(())
+        }
+        return await validateAPIKey(trimmed, for: provider)
+    }
+
     @MainActor
     func refreshModels(for provider: LLMProvider) async -> Result<Void, LLMKeyValidationError> {
         let key = apiKey(for: provider).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -353,6 +374,23 @@ class TranslationService: ObservableObject {
             let fetched = try await fetchModels(provider: provider, apiKey: key)
             applyFetchedModels(fetched, for: provider)
             return .success(())
+        } catch let error as LLMKeyValidationError {
+            return .failure(error)
+        } catch {
+            return .failure(LLMKeyValidationError(provider: provider, statusCode: nil, message: error.localizedDescription))
+        }
+    }
+
+    /// Fetch models for the Settings draft without applying them to the live service.
+    @MainActor
+    func fetchModelsForSettings(for provider: LLMProvider, apiKey: String) async -> Result<[LLMModelEntry], LLMKeyValidationError> {
+        let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return .failure(LLMKeyValidationError(provider: provider, statusCode: nil, message: "API key is not set"))
+        }
+
+        do {
+            return .success(try await fetchModels(provider: provider, apiKey: trimmed))
         } catch let error as LLMKeyValidationError {
             return .failure(error)
         } catch {
@@ -603,12 +641,13 @@ Rules:
         LLMModel(provider: .openAI, name: resolveLegacyDefaultModel().rawValue)
     }
 
-    private func persistAPIKey(_ value: String, provider: LLMProvider) {
+    @discardableResult
+    private func persistAPIKey(_ value: String, provider: LLMProvider) -> Bool {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            KeychainStore.delete(service: keychainService, account: provider.keychainAccount)
+            return KeychainStore.delete(service: keychainService, account: provider.keychainAccount)
         } else {
-            _ = KeychainStore.saveString(trimmed, service: keychainService, account: provider.keychainAccount)
+            return KeychainStore.saveString(trimmed, service: keychainService, account: provider.keychainAccount)
         }
     }
 
@@ -708,6 +747,13 @@ Rules:
     }
 
     func deleteModel(_ model: LLMModel) {
+        guard llmModels.count > 1 else {
+            errorMessage = "Keep at least one model configured."
+            return
+        }
+
+        deletedModelKeys.insert(model.key)
+        UserDefaults.standard.set(Array(deletedModelKeys), forKey: deletedLLMModelsDefaultsKey)
         llmModels.removeAll { $0.model == model }
         llmModelVisibility.removeValue(forKey: model.key)
         llmModelAvailability.removeValue(forKey: model.key)
@@ -731,6 +777,22 @@ Rules:
         saveModelsToDefaults(llmModels)
         saveModelVisibilityToDefaults(llmModelVisibility)
         saveModelAvailabilityToDefaults(llmModelAvailability)
+    }
+
+    @MainActor
+    func commitModelCatalog(
+        models: [LLMModelEntry],
+        visibility: [String: Bool],
+        availability: [String: Bool],
+        deletedKeys: Set<String>
+    ) {
+        deletedModelKeys.formUnion(deletedKeys)
+        UserDefaults.standard.set(Array(deletedModelKeys), forKey: deletedLLMModelsDefaultsKey)
+
+        llmModels = dedupModels(models).filter { !deletedModelKeys.contains($0.model.key) }
+        llmModelVisibility = visibility.filter { !deletedModelKeys.contains($0.key) }
+        llmModelAvailability = availability.filter { !deletedModelKeys.contains($0.key) }
+        normalizeModelsAndVisibility()
     }
 
     private func loadModelsFromDefaults() -> [LLMModelEntry] {
@@ -787,8 +849,14 @@ Rules:
             }
         }
 
-        var visibility = llmModelVisibility
-        var availability = llmModelAvailability
+        llmModels = llmModels
+            .filter { !deletedModelKeys.contains($0.model.key) }
+            .filter { entry in
+                entry.model.provider != .openAI || Self.isSupportedOpenAITextModel(entry.model.name)
+            }
+
+        var visibility = llmModelVisibility.filter { !deletedModelKeys.contains($0.key) }
+        var availability = llmModelAvailability.filter { !deletedModelKeys.contains($0.key) }
         for entry in llmModels {
             if visibility[entry.model.key] == nil {
                 visibility[entry.model.key] = true
@@ -816,6 +884,7 @@ Rules:
     }
 
     private func applyFetchedModels(_ fetched: [LLMModelEntry], for provider: LLMProvider) {
+        let fetched = fetched.filter { !deletedModelKeys.contains($0.model.key) }
         let existing = llmModels
         let existingKeys = Set(existing.map(\.model.key))
 
@@ -879,11 +948,28 @@ Rules:
 
         let decoded = try jsonDecoder.decode(OpenAIModelsResponse.self, from: data)
         let entries = decoded.data
+            .filter { Self.isSupportedOpenAITextModel($0.id) }
             .map { LLMModelEntry(model: LLMModel(provider: .openAI, name: $0.id), displayName: $0.id) }
             .sorted { lhs, rhs in
                 lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
             }
         return entries
+    }
+
+    static func isSupportedOpenAITextModel(_ modelName: String) -> Bool {
+        let name = modelName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let hasTextFamilyPrefix = name.hasPrefix("gpt-")
+            || name.hasPrefix("o1")
+            || name.hasPrefix("o3")
+            || name.hasPrefix("o4")
+            || name.hasPrefix("chatgpt-")
+        guard hasTextFamilyPrefix else { return false }
+
+        let blockedFragments = [
+            "audio", "realtime", "image", "embedding", "dall-e", "whisper",
+            "moderation", "computer-use", "transcribe", "tts"
+        ]
+        return !blockedFragments.contains(where: { name.contains($0) })
     }
 
     private struct GeminiModelsResponse: Decodable {

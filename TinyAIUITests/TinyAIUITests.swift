@@ -24,11 +24,32 @@ final class TinyAIUITests: XCTestCase {
 
     @MainActor
     func testExample() throws {
-        // UI tests must launch the application that they test.
         let app = XCUIApplication()
+        app.launchArguments += ["--ui-testing"]
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 5))
+
+        let source = app.textViews.firstMatch
+        XCTAssertTrue(source.waitForExistence(timeout: 5))
+        source.click()
+        source.typeText("Interface smoke test")
+        XCTAssertTrue(app.buttons["Clear source text"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testSettingsCancelKeepsDraftChangesOutOfTheLiveWindow() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["--ui-testing"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 5))
+        app.buttons["Settings"].click()
+        XCTAssertTrue(app.staticTexts["Settings"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Cancel"].waitForExistence(timeout: 5))
+        app.buttons["Cancel"].click()
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 5))
     }
 
     @MainActor

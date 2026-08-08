@@ -1,10 +1,33 @@
 import AppKit
 import Foundation
+import ApplicationServices
 
-struct RichTextPayload: Equatable {
+final class TextReplacementTarget: @unchecked Sendable {
+    let element: AXUIElement
+    let processIdentifier: pid_t
+
+    init(element: AXUIElement, processIdentifier: pid_t) {
+        self.element = element
+        self.processIdentifier = processIdentifier
+    }
+}
+
+struct RichTextPayload: Equatable, @unchecked Sendable {
     var plain: String
     var html: String?
     var rtf: Data?
+    var replacementTarget: TextReplacementTarget?
+
+    init(plain: String, html: String?, rtf: Data?, replacementTarget: TextReplacementTarget? = nil) {
+        self.plain = plain
+        self.html = html
+        self.rtf = rtf
+        self.replacementTarget = replacementTarget
+    }
+
+    static func == (lhs: RichTextPayload, rhs: RichTextPayload) -> Bool {
+        lhs.plain == rhs.plain && lhs.html == rhs.html && lhs.rtf == rhs.rtf
+    }
 }
 
 enum RichTextHTMLSanitizer {

@@ -4,6 +4,7 @@ import AppKit
 struct MainTranslationView: View {
     @EnvironmentObject var translationService: TranslationService
     @State private var sourceText: String = ""
+    @State private var textChangeGeneration: Int = 0
     @State private var primaryOutputText: String = ""
     @State private var secondaryOutputText: String = ""
     @State private var showSettings: Bool = false
@@ -35,6 +36,7 @@ struct MainTranslationView: View {
                     .buttonStyle(.borderless)
                     .hoverHighlight()
                     .help("Clear")
+                    .accessibilityLabel("Clear source text")
                     .disabled(sourceText.isEmpty)
                 }
                 
@@ -53,18 +55,27 @@ struct MainTranslationView: View {
                         .padding(8)
                         .onChange(of: sourceText) { _, _ in
                             processingTask?.cancel()
+                            textChangeGeneration += 1
+                            let generation = textChangeGeneration
+                            primaryNetworkTask?.cancel()
+                            secondaryNetworkTask?.cancel()
+                            primaryNetworkTask = nil
+                            secondaryNetworkTask = nil
+                            // Invalidate completion handlers immediately. URLSession
+                            // cancellation is cooperative, so this prevents an old
+                            // response from updating the view during that short window.
+                            primaryRequestId = UUID()
+                            secondaryRequestId = UUID()
+                            isPrimaryLoading = false
+                            isSecondaryLoading = false
+                            secondaryRunningActionId = nil
+                            primaryOutputText = ""
+                            secondaryOutputText = ""
                             
-                            if sourceText.isEmpty {
-                                primaryNetworkTask?.cancel()
-                                secondaryNetworkTask?.cancel()
-                                primaryOutputText = ""
-                                secondaryOutputText = ""
-                                isPrimaryLoading = false
-                                isSecondaryLoading = false
-                                secondaryRunningActionId = nil
-                            } else {
+                            if !sourceText.isEmpty {
                                 // Create a new task with delay for debounce
                                 let task = DispatchWorkItem {
+                                    guard generation == textChangeGeneration else { return }
                                     processText()
                                 }
                                 processingTask = task
@@ -104,6 +115,7 @@ struct MainTranslationView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Settings")
+                .accessibilityLabel("Settings")
 
                 Button(action: { showHelp = true }) {
                     Image(systemName: "questionmark.circle")
@@ -111,6 +123,7 @@ struct MainTranslationView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Help")
+                .accessibilityLabel("Help")
             }
         }
         .onAppear {
@@ -336,6 +349,11 @@ struct MainTranslationView: View {
     private func clearSourceText() {
         primaryNetworkTask?.cancel()
         secondaryNetworkTask?.cancel()
+        processingTask?.cancel()
+        primaryNetworkTask = nil
+        secondaryNetworkTask = nil
+        primaryRequestId = UUID()
+        secondaryRequestId = UUID()
         sourceText = ""
         primaryOutputText = ""
         secondaryOutputText = ""

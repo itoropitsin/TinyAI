@@ -45,13 +45,14 @@ enum KeychainStore {
         return addStatus == errSecSuccess
     }
 
-    static func delete(service: String, account: String) {
+    @discardableResult
+    static func delete(service: String, account: String) -> Bool {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: account
         ]
-        SecItemDelete(query as CFDictionary)
+        let status = SecItemDelete(query as CFDictionary)
+        return status == errSecSuccess || status == errSecItemNotFound
     }
 }
-

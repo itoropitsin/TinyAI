@@ -10,8 +10,8 @@ struct SettingsView: View {
     @State private var geminiKey: String = ""
     @State private var busyProviders: Set<LLMProvider> = []
     @State private var keyValidationTasks: [LLMProvider: Task<Void, Never>] = [:]
+    @State private var keyValidationRequestTasks: [LLMProvider: Task<Void, Never>] = [:]
     @State private var apiAlert: APIAlert?
-    @State private var modelInfoAlert: APIAlert?
     @State private var pendingDelete: PendingDelete?
     @State private var customActions: [CustomAction] = []
     @State private var starredPrimarySelectionKey: String = TranslationService.builtInTranslateSelectionKey
@@ -25,6 +25,12 @@ struct SettingsView: View {
     @State private var popupHotkey: KeyboardShortcut = KeyboardShortcut(keyCode: 8, modifiers: [.command])
     @State private var popupHotkeyPressMode: PopupHotkeyPressMode = .doublePress
     @State private var popupHotkeyError: String?
+    @State private var draftModels: [LLMModelEntry] = []
+    @State private var draftModelVisibility: [String: Bool] = [:]
+    @State private var draftModelAvailability: [String: Bool] = [:]
+    @State private var deletedModelKeys: Set<String> = []
+    @State private var validatedKeyCandidates: [LLMProvider: String] = [:]
+    @State private var keyValidationGeneration: [LLMProvider: Int] = [:]
 
     private let settingsLabelColumnWidth: CGFloat = 130
     private let settingsControlColumnWidth: CGFloat = 240
@@ -61,6 +67,8 @@ struct SettingsView: View {
 
             HStack {
                 Button("Cancel") {
+                    keyValidationTasks.values.forEach { $0.cancel() }
+                    keyValidationRequestTasks.values.forEach { $0.cancel() }
                     dismiss()
                 }
                 .hoverHighlight()
@@ -69,6 +77,19 @@ struct SettingsView: View {
                 Spacer()
 
                 Button("Save") {
+                    guard draftKeysAreReadyForSave else {
+                        apiAlert = APIAlert(
+                            title: "Validate API keys first",
+                            message: "Wait for key validation to finish, or correct the key and try again."
+                        )
+                        return
+                    }
+
+                    if let hotkeyError = keyboardMonitor.validatePopupHotkey(popupHotkey, pressMode: popupHotkeyPressMode) {
+                        popupHotkeyError = hotkeyError
+                        return
+                    }
+
                     let normalizedActions = customActions.map { action in
                         var copy = action
                         copy.title = String(copy.title.prefix(25))
@@ -84,6 +105,14 @@ struct SettingsView: View {
                     translationService.saveTranslationStyleContext(translationStyleContext)
                     translationService.saveActionStyleContext(actionStyleContext)
                     translationService.saveActionStyleContextActionKeys(actionStyleContextActionKeys)
+                    translationService.saveAPIKey(openAIKey, for: .openAI)
+                    translationService.saveAPIKey(geminiKey, for: .gemini)
+                    translationService.commitModelCatalog(
+                        models: draftModels,
+                        visibility: draftModelVisibility,
+                        availability: draftModelAvailability,
+                        deletedKeys: deletedModelKeys
+                    )
 
                     if let error = keyboardMonitor.applyPopupHotkeySettings(shortcut: popupHotkey, pressMode: popupHotkeyPressMode) {
                         popupHotkeyError = error
@@ -119,17 +148,26 @@ struct SettingsView: View {
             popupHotkey = keyboardMonitor.popupHotkey
             popupHotkeyPressMode = keyboardMonitor.popupHotkeyPressMode
             popupHotkeyError = nil
+            draftModels = translationService.llmModels
+            draftModelVisibility = translationService.llmModelVisibility
+            draftModelAvailability = translationService.llmModelAvailability
+            deletedModelKeys = []
+            validatedKeyCandidates = [
+                .openAI: openAIKey.trimmingCharacters(in: .whitespacesAndNewlines),
+                .gemini: geminiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            ]
+        }
+        .onDisappear {
+            keyValidationTasks.values.forEach { $0.cancel() }
+            keyValidationRequestTasks.values.forEach { $0.cancel() }
         }
         .alert(item: $apiAlert) { alert in
-            Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
-        }
-        .alert(item: $modelInfoAlert) { alert in
             Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
         }
         .sheet(item: $pendingDelete) { pending in
             ModelReplacementSheet(
                 pending: pending,
-                candidates: translationService.replacementCandidates(excluding: pending.model),
+                candidates: draftReplacementCandidates(excluding: pending.model),
                 onCancel: { pendingDelete = nil },
                 onReplaceAndDelete: { replacement in
                     applyReplacementAndDelete(old: pending.model, replacement: replacement)
@@ -158,7 +196,7 @@ struct SettingsView: View {
                         getKeyURL: URL(string: "https://aistudio.google.com/app/apikey")!
                     )
 
-                    Text("Keys are tested before saving. If validation fails, the field is cleared and the error code is shown.")
+                    Text("Keys are tested before saving. A failed check leaves the draft untouched and shows the provider error.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -179,10 +217,26 @@ struct SettingsView: View {
         }
     }
 
+    private var draftKeysAreReadyForSave: Bool {
+        for provider in LLMProvider.allCases {
+            let candidate = (provider == .openAI ? openAIKey : geminiKey)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let saved = translationService.apiKey(for: provider)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !candidate.isEmpty,
+               candidate != saved,
+               validatedKeyCandidates[provider] != candidate {
+                return false
+            }
+        }
+        return true
+    }
+
     private func providerRow(provider: LLMProvider, key: Binding<String>, getKeyURL: URL) -> some View {
         let isBusy = busyProviders.contains(provider)
+        let hasDraftKey = !key.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let hasSavedKey = translationService.hasAPIKey(for: provider)
-        let statusColor: Color = hasSavedKey ? .green : .red
+        let statusColor: Color = hasDraftKey ? .green : .red
 
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 10) {
@@ -199,11 +253,10 @@ struct SettingsView: View {
                     .onChange(of: key.wrappedValue) { _, newValue in
                         scheduleProviderKeyValidation(provider, candidate: newValue)
                     }
-                    .disabled(isBusy)
             }
 
             HStack(spacing: 10) {
-                Text(hasSavedKey ? "Active" : "Inactive")
+                Text(hasDraftKey ? (hasDraftKey == hasSavedKey ? "Active" : "Ready to save") : "Inactive")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Link("Get an API key", destination: getKeyURL)
@@ -216,7 +269,7 @@ struct SettingsView: View {
                     Label("Refresh models", systemImage: "arrow.clockwise.circle.fill")
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(isBusy || !hasSavedKey)
+                .disabled(isBusy || !hasDraftKey)
             }
         }
         .padding(.vertical, 6)
@@ -224,7 +277,7 @@ struct SettingsView: View {
     }
 
     private var modelsList: some View {
-        let grouped = Dictionary(grouping: translationService.llmModels, by: { $0.model.provider })
+        let grouped = Dictionary(grouping: draftModels, by: { $0.model.provider })
         let providers = LLMProvider.allCases
 
         return VStack(alignment: .leading, spacing: 10) {
@@ -251,9 +304,16 @@ struct SettingsView: View {
 
     private func scheduleProviderKeyValidation(_ provider: LLMProvider, candidate: String) {
         keyValidationTasks[provider]?.cancel()
+        keyValidationRequestTasks[provider]?.cancel()
+        busyProviders.remove(provider)
         let snapshot = candidate
+        validatedKeyCandidates.removeValue(forKey: provider)
         keyValidationTasks[provider] = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 700_000_000)
+            do {
+                try await Task.sleep(nanoseconds: 700_000_000)
+            } catch {
+                return
+            }
 
             let current = provider == .openAI ? openAIKey : geminiKey
             guard current == snapshot else { return }
@@ -261,12 +321,11 @@ struct SettingsView: View {
             let trimmed = snapshot.trimmingCharacters(in: .whitespacesAndNewlines)
             let saved = translationService.apiKey(for: provider).trimmingCharacters(in: .whitespacesAndNewlines)
 
-            if trimmed.isEmpty, !saved.isEmpty {
-                _ = await translationService.validateAndSaveAPIKey("", for: provider)
+            if trimmed.isEmpty {
+                validatedKeyCandidates[provider] = ""
                 return
             }
 
-            guard !trimmed.isEmpty else { return }
             guard trimmed != saved else { return }
 
             validateProviderKey(provider, candidate: trimmed)
@@ -274,45 +333,53 @@ struct SettingsView: View {
     }
 
     private func validateProviderKey(_ provider: LLMProvider, candidate: String) {
-        guard !busyProviders.contains(provider) else { return }
+        let generation = (keyValidationGeneration[provider] ?? 0) + 1
+        keyValidationGeneration[provider] = generation
         busyProviders.insert(provider)
 
-        Task { @MainActor in
-            let result = await translationService.validateAndSaveAPIKey(candidate, for: provider)
-            busyProviders.remove(provider)
+        let task = Task { @MainActor in
+            defer {
+                if keyValidationGeneration[provider] == generation {
+                    keyValidationRequestTasks[provider] = nil
+                }
+            }
+            let result = await translationService.validateAPIKeyOnly(candidate, for: provider)
+            guard !Task.isCancelled else { return }
+            let current = provider == .openAI ? openAIKey : geminiKey
+            let isCurrent = current.trimmingCharacters(in: .whitespacesAndNewlines) == candidate
+                && keyValidationGeneration[provider] == generation
+            if keyValidationGeneration[provider] == generation {
+                busyProviders.remove(provider)
+            }
 
+            guard isCurrent else { return }
             switch result {
             case .success:
-                switch provider {
-                case .openAI:
-                    openAIKey = translationService.apiKey
-                case .gemini:
-                    geminiKey = translationService.geminiAPIKey
-                }
+                validatedKeyCandidates[provider] = candidate
             case .failure(let error):
-                switch provider {
-                case .openAI:
-                    openAIKey = ""
-                case .gemini:
-                    geminiKey = ""
-                }
+                validatedKeyCandidates.removeValue(forKey: provider)
                 apiAlert = APIAlert(
                     title: "Key validation failed",
                     message: error.errorDescription ?? "Unknown error"
                 )
             }
         }
+        keyValidationRequestTasks[provider] = task
     }
 
     private func refreshProviderModels(_ provider: LLMProvider) {
         guard !busyProviders.contains(provider) else { return }
         busyProviders.insert(provider)
 
+        let key = provider == .openAI ? openAIKey : geminiKey
         Task { @MainActor in
-            let result = await translationService.refreshModels(for: provider)
+            let result = await translationService.fetchModelsForSettings(for: provider, apiKey: key)
             busyProviders.remove(provider)
 
-            if case .failure(let error) = result {
+            switch result {
+            case .success(let models):
+                applyFetchedModelsToDraft(models, for: provider)
+            case .failure(let error):
                 apiAlert = APIAlert(
                     title: "Failed to refresh models",
                     message: error.errorDescription ?? "Unknown error"
@@ -321,13 +388,31 @@ struct SettingsView: View {
         }
     }
 
+    private func applyFetchedModelsToDraft(_ fetched: [LLMModelEntry], for provider: LLMProvider) {
+        let fetched = fetched.filter { !deletedModelKeys.contains($0.model.key) }
+        let existingKeys = Set(draftModels.map(\.model.key))
+        for entry in fetched where !existingKeys.contains(entry.model.key) {
+            draftModelVisibility[entry.model.key] = false
+        }
+        draftModels = dedupDraftModels(draftModels + fetched)
+        let fetchedKeys = Set(fetched.map(\.model.key))
+        for entry in draftModels where entry.model.provider == provider {
+            draftModelAvailability[entry.model.key] = fetchedKeys.contains(entry.model.key)
+        }
+    }
+
+    private func dedupDraftModels(_ models: [LLMModelEntry]) -> [LLMModelEntry] {
+        var seen: Set<String> = []
+        return models.filter { seen.insert($0.model.key).inserted }
+    }
+
     private func modelRow(_ entry: LLMModelEntry) -> some View {
-        let isDeprecated = !translationService.isModelAvailable(entry.model)
+        let isDeprecated = !(draftModelAvailability[entry.model.key] ?? true)
 
         return HStack(spacing: 10) {
             Toggle(isOn: Binding(
-                get: { translationService.isModelVisible(entry.model) },
-                set: { translationService.setModelVisible(entry.model, visible: $0) }
+                get: { draftModelVisibility[entry.model.key] ?? true },
+                set: { draftModelVisibility[entry.model.key] = $0 }
             )) {
                 Text(entry.displayName)
                     .foregroundColor(isDeprecated ? .red : .primary)
@@ -337,7 +422,7 @@ struct SettingsView: View {
 
             if isDeprecated {
                 Button {
-                    modelInfoAlert = APIAlert(
+                    apiAlert = APIAlert(
                         title: "Model is no longer available",
                         message: "This model is not returned by the provider for your current API key, but it remains in the list for compatibility."
                     )
@@ -360,6 +445,14 @@ struct SettingsView: View {
     }
 
     private func requestDelete(_ model: LLMModel) {
+        guard draftModels.count > 1 else {
+            apiAlert = APIAlert(
+                title: "Keep at least one model",
+                message: "TinyAI needs one available model to run an action."
+            )
+            return
+        }
+
         let usedInTranslate = builtInTranslateModel == model
         let actionIndexes = customActions.indices.filter { customActions[$0].model == model }
 
@@ -368,13 +461,12 @@ struct SettingsView: View {
             return
         }
 
-        translationService.deleteModel(model)
+        removeDraftModel(model)
     }
 
     private func applyReplacementAndDelete(old: LLMModel, replacement: LLMModel) {
         if builtInTranslateModel == old {
             builtInTranslateModel = replacement
-            translationService.saveBuiltInTranslateModel(replacement)
         }
 
         if customActions.contains(where: { $0.model == old }) {
@@ -386,10 +478,34 @@ struct SettingsView: View {
                 }
                 return action
             }
-            translationService.saveCustomActions(customActions)
         }
 
-        translationService.deleteModel(old)
+        removeDraftModel(old)
+    }
+
+    private func removeDraftModel(_ model: LLMModel) {
+        draftModels.removeAll { $0.model == model }
+        draftModelVisibility.removeValue(forKey: model.key)
+        draftModelAvailability.removeValue(forKey: model.key)
+        deletedModelKeys.insert(model.key)
+    }
+
+    private func draftReplacementCandidates(excluding model: LLMModel) -> [LLMModelEntry] {
+        draftModels
+            .filter { $0.model != model }
+            .filter { draftModelAvailability[$0.model.key] ?? true }
+            .sorted { $0.displayNameWithProvider.localizedCaseInsensitiveCompare($1.displayNameWithProvider) == .orderedAscending }
+    }
+
+    private func draftModelsForActionsPickerIncluding(_ selection: LLMModel) -> [LLMModelEntry] {
+        var list = draftModels
+            .filter { draftModelVisibility[$0.model.key] ?? true }
+            .sorted { $0.displayNameWithProvider.localizedCaseInsensitiveCompare($1.displayNameWithProvider) == .orderedAscending }
+        if !list.contains(where: { $0.model == selection }) {
+            let fallbackName = draftModels.first(where: { $0.model == selection })?.displayName ?? selection.name
+            list.insert(LLMModelEntry(model: selection, displayName: fallbackName), at: 0)
+        }
+        return list
     }
 
     private var actionStyleOptions: [(key: String, title: String)] {
@@ -554,7 +670,7 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                             .frame(width: settingsLabelColumnWidth, alignment: .leading)
                         Picker("", selection: $builtInTranslateModel) {
-                            ForEach(translationService.modelsForActionsPickerIncluding(builtInTranslateModel)) { entry in
+                            ForEach(draftModelsForActionsPickerIncluding(builtInTranslateModel)) { entry in
                                 Text(entry.displayNameWithProvider).tag(entry.model)
                             }
                         }
@@ -712,7 +828,7 @@ struct SettingsView: View {
                                     .frame(minWidth: 180)
 
                                     Picker("", selection: $customActions[index].model) {
-                                        ForEach(translationService.modelsForActionsPickerIncluding(customActions[index].model)) { entry in
+                                        ForEach(draftModelsForActionsPickerIncluding(customActions[index].model)) { entry in
                                             Text(entry.displayNameWithProvider).tag(entry.model)
                                         }
                                     }

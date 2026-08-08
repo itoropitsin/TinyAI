@@ -164,6 +164,10 @@ class KeyboardMonitor: ObservableObject {
     }
 
     func validatePopupHotkey(_ shortcut: KeyboardShortcut, pressMode: PopupHotkeyPressMode) -> String? {
+        Self.validationError(for: shortcut, pressMode: pressMode)
+    }
+
+    static func validationError(for shortcut: KeyboardShortcut, pressMode: PopupHotkeyPressMode) -> String? {
         guard shortcut.modifiers.contains(.command) else {
             return "Shortcut must include ⌘ (Command)."
         }
@@ -185,8 +189,10 @@ class KeyboardMonitor: ObservableObject {
             return "⌘⇧3/4/5 are reserved by the system for screenshots."
         }
 
-        // Common system/app editing shortcuts: disallow for single-press so we don’t override them.
-        if pressMode == .singlePress && shortcut.modifiers == [.command] {
+        // Common system/app editing shortcuts are not safe to intercept. ⌘C is the
+        // intentional exception for double-press mode because the first press is passed
+        // through and the second press opens the popup.
+        if shortcut.modifiers == [.command] {
             let reservedSinglePress: Set<Int64> = [
                 0,  // A
                 6,  // Z
@@ -198,7 +204,8 @@ class KeyboardMonitor: ObservableObject {
                 13, // W
                 50  // `
             ]
-            if reservedSinglePress.contains(shortcut.keyCode) {
+            let allowsDoublePressCopy = pressMode == .doublePress && shortcut.keyCode == 8
+            if reservedSinglePress.contains(shortcut.keyCode) && !allowsDoublePressCopy {
                 return "This shortcut already has a system-defined action (Copy/Paste/Undo/etc)."
             }
         }
@@ -280,6 +287,12 @@ class KeyboardMonitor: ObservableObject {
             let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
             let flags = event.flags
 
+            // A held key generates repeated keyDown events. They must not trigger a
+            // second popup or custom action while the user is still holding the key.
+            if event.getIntegerValueField(.keyboardEventAutorepeat) != 0 {
+                return Unmanaged.passUnretained(event)
+            }
+
             if isSimulatingCopy {
                 return Unmanaged.passUnretained(event)
             }
@@ -353,6 +366,8 @@ class KeyboardMonitor: ObservableObject {
             // Fallback: use the pasteboard
             let pasteboard = NSPasteboard.general
             let snapshot = snapshotPasteboard(pasteboard)
+            let initialChangeCount = pasteboard.changeCount
+            let replacementTarget = focusedTextReplacementTarget()
 
             // Copy selected text
             isSimulatingCopy = true
@@ -360,20 +375,32 @@ class KeyboardMonitor: ObservableObject {
             let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true) // C key
             keyDown?.flags = .maskCommand
             let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: false)
-            keyDown?.post(tap: .cghidEventTap)
-            keyUp?.post(tap: .cghidEventTap)
+            if let keyDown, let keyUp {
+                keyDown.post(tap: .cghidEventTap)
+                keyUp.post(tap: .cghidEventTap)
+            }
 
             // Small delay to allow the copy to complete
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
                 guard let self = self else { return }
-                let payload = RichTextPasteboard.read(from: pasteboard)
-                if let payload, !payload.plain.isEmpty {
+                let copiedChangeCount = pasteboard.changeCount
+                // If the target app did not copy anything, do not reuse whatever the
+                // user happened to have on the clipboard. That text could otherwise
+                // be sent to the model without the user selecting it.
+                if copiedChangeCount != initialChangeCount,
+                   var payload = RichTextPasteboard.read(from: pasteboard),
+                   !payload.plain.isEmpty {
+                    payload.replacementTarget = replacementTarget
                     DispatchQueue.main.async {
                         self.onPopupHotkey?(payload)
                     }
                 }
-                // Restore previous pasteboard contents
-                restorePasteboard(pasteboard, snapshot: snapshot)
+                // Restore only the clipboard contents produced by our synthetic copy.
+                // If the user copied something else in the meantime, never overwrite it.
+                if copiedChangeCount != initialChangeCount,
+                   pasteboard.changeCount == copiedChangeCount {
+                    restorePasteboard(pasteboard, snapshot: snapshot)
+                }
                 self.isSimulatingCopy = false
                 // Reset the flag after processing
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.85) {
@@ -451,7 +478,19 @@ class KeyboardMonitor: ObservableObject {
         pasteboard.writeObjects(items)
     }
 
-    private func getSelectedRichText() -> RichTextPayload? {
+    private func focusedTextReplacementTarget() -> TextReplacementTarget? {
+        guard let element = focusedUIElement() else { return nil }
+        return textReplacementTarget(for: element)
+    }
+
+    private func textReplacementTarget(for element: AXUIElement) -> TextReplacementTarget? {
+        var processIdentifier: pid_t = 0
+        AXUIElementGetPid(element, &processIdentifier)
+        guard processIdentifier != 0 else { return nil }
+        return TextReplacementTarget(element: element, processIdentifier: processIdentifier)
+    }
+
+    private func focusedUIElement() -> AXUIElement? {
         let systemWideElement = AXUIElementCreateSystemWide()
 
         var focusedElementValue: AnyObject?
@@ -476,9 +515,12 @@ class KeyboardMonitor: ObservableObject {
             element = window
         }
 
-        guard let element else {
-            return nil
-        }
+        return element
+    }
+
+    private func getSelectedRichText() -> RichTextPayload? {
+        guard let element = focusedUIElement() else { return nil }
+        let target = textReplacementTarget(for: element)
 
         let attributedAttribute = "AXSelectedTextAttributedString" as CFString
         var attributedValue: AnyObject?
@@ -486,13 +528,13 @@ class KeyboardMonitor: ObservableObject {
         if attributedResult == .success, let attributed = attributedValue as? NSAttributedString, !attributed.string.isEmpty {
             let html = RichTextConverter.html(from: attributed)
             let rtf = RichTextConverter.rtf(from: attributed)
-            return RichTextPayload(plain: attributed.string.normalizedPlainText(), html: html, rtf: rtf)
+            return RichTextPayload(plain: attributed.string.normalizedPlainText(), html: html, rtf: rtf, replacementTarget: target)
         }
 
         var selectedText: AnyObject?
         let textResult = AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selectedText)
         if textResult == .success, let text = selectedText as? String, !text.isEmpty {
-            return RichTextPayload(plain: text.normalizedPlainText(), html: nil, rtf: nil)
+            return RichTextPayload(plain: text.normalizedPlainText(), html: nil, rtf: nil, replacementTarget: target)
         }
 
         return nil

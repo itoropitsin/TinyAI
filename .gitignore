@@ -1,9 +1,12 @@
 .DS_Store
-DerivedData/
+**/DerivedData/
 
 # Xcode
-xcuserdata/
-*.xcuserstate
-*.xcscmblueprint
-*.xccheckout
+**/xcuserdata/
+**/*.xcuserstate
+**/*.xcscmblueprint
+**/*.xccheckout
 
+# Local build and test output
+.build/
+*.trace

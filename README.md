@@ -23,8 +23,11 @@ It works in two ways:
 ## Quick start
 
 1. Build and run from Xcode (`TinyAI.xcodeproj`).
-2. Open **Settings** and paste your **OpenAI API key**.
+2. Open **Settings** and paste an **OpenAI** or **Google Gemini API key**.
 3. Choose what **Starred 1** and **Starred 2** do (Translate or one of your custom actions).
+
+Keys are checked before they are saved. Settings changes, including model visibility and
+model deletion, are applied only after you press **Save**; **Cancel** discards the draft.
 
 ## Tips
 
@@ -35,7 +38,8 @@ It works in two ways:
 
 ### Main window (for longer text)
 
-- Paste text into **Source text**.
+- Paste text into **Source text**. Editing the source immediately cancels the previous
+  request; a new request starts after a short pause when you stop typing.
 - Results appear on the right:
   - **Starred 1**: your primary action (often Translate)
   - **Starred 2**: a second action you like (often Rewrite / Grammar fix / Summary)
@@ -45,6 +49,8 @@ It works in two ways:
 
 - Select text in any app and trigger the popup (default: **double‑press ⌘C**).
 - Use **Copy** to copy the result, or **Replace** to replace the selected text directly.
+- Replace returns focus to the app where the text was selected and refuses to paste if
+  that app is no longer focused.
 - Change the popup hotkey and trigger mode (single/double press) in **Settings**.
 
 ## Example custom actions (prompts)
@@ -66,5 +72,8 @@ If you just enabled it, quit and relaunch TinyAI.
 
 ## Privacy
 
-- Your API key is stored locally in **macOS Keychain**.
-- TinyAI only sends text to OpenAI when you run an action.
+- Your API keys are stored locally in **macOS Keychain**.
+- TinyAI sends text only when a configured action runs. In the main window, editing the
+  source starts the configured actions after a short pause; the popup sends selected text
+  when you open it. OpenAI and Gemini models are listed separately, and non-text OpenAI
+  models are hidden automatically.

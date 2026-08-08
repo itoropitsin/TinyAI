@@ -635,11 +635,31 @@ struct TranslationPopupView: View {
 	    }
 
     private func replaceText(with payload: RichTextPayload) {
-        let pasteboard = NSPasteboard.general
-        RichTextPasteboard.write(payload, to: pasteboard)
+        guard let target = selectedPayload?.replacementTarget,
+              let application = NSRunningApplication(processIdentifier: target.processIdentifier) else {
+            translationService.errorMessage = "The original text application is no longer available."
+            return
+        }
 
-        // Small delay before paste
+        let pasteboard = NSPasteboard.general
+        var replacementPayload = payload
+        replacementPayload.replacementTarget = target
+        RichTextPasteboard.write(replacementPayload, to: pasteboard)
+        let expectedPasteboardChangeCount = pasteboard.changeCount
+
+        // Restore focus to the app and only paste after it is frontmost. This keeps
+        // Replace from inserting text into whichever app the user clicked meanwhile.
+        if NSWorkspace.shared.frontmostApplication?.processIdentifier != target.processIdentifier {
+            application.activate(options: [])
+        }
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier,
+                  pasteboard.changeCount == expectedPasteboardChangeCount else {
+                self.translationService.errorMessage = "The original text application is no longer focused; nothing was replaced."
+                return
+            }
+
             // Paste text (Command-V)
             let source = CGEventSource(stateID: .hidSystemState)
             let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true) // V key
@@ -647,9 +667,8 @@ struct TranslationPopupView: View {
             let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
             keyDown?.post(tap: .cghidEventTap)
             keyUp?.post(tap: .cghidEventTap)
+            self.onClose?()
         }
-
-        onClose?()
     }
 
     private func copyToClipboard(_ payload: RichTextPayload) {
