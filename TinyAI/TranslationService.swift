@@ -1211,6 +1211,8 @@ Rules:
 - Preserve meaning over literal wording.
 - Keep tone (formal/informal), politeness, and emotional nuance.
 - Preserve formatting exactly: keep all line breaks, paragraph boundaries, list structure, and leading indentation. Do not reflow or merge lines.
+- Outside code blocks and inline code, use the standard Markdown marker "- " for unordered lists; never use a private-use font glyph or unknown placeholder as a list marker.
+- Preserve code blocks and code spans exactly, including private-use characters that are part of code.
 - Do not add explanations, notes, or commentary.
 - Do not censor or soften content.
 - If a term is ambiguous, choose the most likely meaning from context. If truly unclear, keep the original term in parentheses after the translation.
@@ -1263,6 +1265,8 @@ Translate from Auto-detect to \(targetLanguage) naturally and clearly.
 Rules:
 - Use the HTML input only as formatting guidance.
 - Preserve lists, numbering, headings, and emphasis from the input (bold/italic/links) using Markdown.
+- Outside code blocks and inline code, use the standard Markdown marker "- " for unordered lists; never use a private-use font glyph or unknown placeholder as a list marker.
+- Preserve code blocks and code spans exactly, including private-use characters that are part of code.
 - Do not invent emphasis that wasn't present unless required for clarity.
 - Preserve line breaks and paragraph structure.
 - Output only Markdown (no HTML, no code fences).
@@ -1286,6 +1290,8 @@ Rules:
 - Keep the original language.
 - Preserve tone (formal/informal), voice, and intent.
 - Preserve formatting exactly: keep all line breaks, paragraph boundaries, list structure, and leading indentation. Do not reflow or merge lines.
+- Outside code blocks and inline code, use the standard Markdown marker "- " for unordered lists; never use a private-use font glyph or unknown placeholder as a list marker.
+- Preserve code blocks and code spans exactly, including private-use characters that are part of code.
 - Do not add explanations, notes, or commentary.
 - Output only the corrected version of the text.
 """
@@ -1304,6 +1310,7 @@ Rules:
 - Edit only the human-readable text content (text nodes).
 - Preserve emphasis/formatting exactly as represented in HTML (e.g. keep <b>/<strong> tags and any inline font-weight styles; do not drop them).
 - Preserve whitespace and line breaks as represented in the HTML.
+- Treat a private-use glyph that appears only as a list marker as list structure, not as visible text.
 - Do not add explanations, notes, or commentary.
 - Output must be valid HTML and must start with '<' (no Markdown, no code fences, no plain text).
 - If you cannot comply with the rules, output the original input HTML unchanged.
@@ -1955,7 +1962,15 @@ Rules:
             return nil
         }
         let actionKey = actionId?.uuidString
-        let styledPrompt = appendActionStyleContext(to: trimmedPrompt, actionKey: actionKey)
+        let formattingPrompt = """
+        \(trimmedPrompt)
+
+        Formatting requirements:
+        - Preserve line breaks, paragraph boundaries, and list structure when relevant.
+        - Outside code blocks and inline code, use the standard Markdown marker "- " for unordered lists; never use a private-use font glyph or unknown placeholder as a list marker.
+        - Preserve code blocks and code spans exactly, including private-use characters that are part of code.
+        """
+        let styledPrompt = appendActionStyleContext(to: formattingPrompt, actionKey: actionKey)
 
 	        isTranslating = true
 	        errorMessage = nil
@@ -2137,6 +2152,8 @@ System requirements (highest priority):
 - Input is HTML and output must be Markdown (no HTML, no code fences).
 - Use the HTML only as formatting guidance.
 - Preserve lists, numbering, headings, links, and emphasis from the input using Markdown.
+- Outside code blocks and inline code, use the standard Markdown marker "- " for unordered lists; never use a private-use font glyph or unknown placeholder as a list marker.
+- Preserve code blocks and code spans exactly, including private-use characters that are part of code.
 - Keep the output readable and neatly formatted.
 
 Task:

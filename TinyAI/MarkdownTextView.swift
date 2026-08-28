@@ -64,59 +64,10 @@ struct MarkdownTextView: NSViewRepresentable {
         }
 
         if #available(macOS 12.0, *) {
-            do {
-                var options = AttributedString.MarkdownParsingOptions()
-                options.interpretedSyntax = .inlineOnlyPreservingWhitespace
-                options.failurePolicy = .returnPartiallyParsedIfPossible
-                let prepared = preparedMarkdown(content)
-                let attributed = try AttributedString(markdown: prepared, options: options)
-                textView.textStorage?.setAttributedString(normalizedMarkdownFonts(NSAttributedString(attributed)))
-            } catch {
-                textView.textStorage?.setAttributedString(NSAttributedString(string: content))
-            }
+            textView.textStorage?.setAttributedString(RichTextConverter.attributedString(fromMarkdown: content))
         } else {
-            textView.textStorage?.setAttributedString(NSAttributedString(string: content))
+            textView.textStorage?.setAttributedString(NSAttributedString(string: RichTextConverter.normalizedMarkdown(content)))
         }
-    }
-
-    private func preparedMarkdown(_ raw: String) -> String {
-        raw
-            .replacingOccurrences(of: "\r\n", with: "\n")
-            .replacingOccurrences(of: "\r", with: "\n")
-    }
-
-    private func normalizedMarkdownFonts(_ attributed: NSAttributedString) -> NSAttributedString {
-        let normalized = NSMutableAttributedString(attributedString: attributed)
-        let fullRange = NSRange(location: 0, length: normalized.length)
-        normalized.enumerateAttribute(.font, in: fullRange) { value, range, _ in
-            let font = value as? NSFont
-            normalized.addAttribute(.font, value: normalizedFont(from: font), range: range)
-        }
-        return normalized
-    }
-
-    private func normalizedFont(from original: NSFont?) -> NSFont {
-        let originalFont = original ?? baseFont
-        let traits = originalFont.fontDescriptor.symbolicTraits
-        let isMonospaced = traits.contains(.monoSpace)
-        let isBold = traits.contains(.bold)
-        let isItalic = traits.contains(.italic)
-
-        let pointSize = originalFont.pointSize > 0 ? originalFont.pointSize : baseFont.pointSize
-        let weight: NSFont.Weight = isBold ? .semibold : .regular
-
-        var font: NSFont
-        if isMonospaced {
-            font = NSFont.monospacedSystemFont(ofSize: pointSize, weight: weight)
-        } else {
-            font = NSFont.systemFont(ofSize: pointSize, weight: weight)
-        }
-
-        if isItalic {
-            font = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
-        }
-
-        return font
     }
 
     final class Coordinator {

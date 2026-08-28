@@ -33,8 +33,13 @@ struct RichTextPayload: Equatable, @unchecked Sendable {
 enum RichTextHTMLSanitizer {
     static func sanitize(_ html: String) -> String {
         var result = html
-        result = stripFontMarkupAndStyles(from: result)
+        // List markers copied from rich-text applications can be duplicated:
+        // once by the list structure and once as a literal character in the
+        // text. Remove those characters before stripping the source font; some
+        // applications use a private-use glyph for the visible marker.
         result = removeDuplicateListBullets(from: result)
+        result = replaceStandalonePrivateUseListMarkers(from: result)
+        result = stripFontMarkupAndStyles(from: result)
         return result
     }
 
@@ -65,6 +70,8 @@ enum RichTextHTMLSanitizer {
     private static func removeDuplicateListBullets(from html: String) -> String {
         var result = html
 
+        let markerPattern = "(?:&bull;|&#8226;|&#x2022;|•|·|◦|▪|‣|\\-|\\*|\\+|\(RichTextListMarkers.slackPrivateUseBullet)|&#58630;|&#x[eE]506;)"
+
         // Remove a literal bullet that appears inside <li> content (often duplicated by list styling).
         // Covers cases like:
         // - <li>• text</li>
@@ -73,17 +80,36 @@ enum RichTextHTMLSanitizer {
         // - <li><span><b>•</b></span> text</li>
         result = replacingRegex(
             in: result,
-            pattern: "(<li\\b[^>]*>(?:\\s|&nbsp;|<[^>]+>)*)(?:&bull;|&#8226;|•|·|\\-|\\*)(?:\\s|&nbsp;)+",
-            with: "$1",
+            pattern: "(<li\\b[^>]*>(?:(?!<(?:pre|code)\\b)(?:\\s|&nbsp;|<[^>]+>))*)(" + markerPattern + ")((?:</?[^>]+>)*)(?:[ \\t]|&nbsp;)+((?:</?[^>]+>)*)",
+            with: "$1$3$4",
             options: [.caseInsensitive]
         )
 
         // Clean up empty wrappers that may remain after removing the bullet glyph.
-        result = replacingRegex(in: result, pattern: "<span\\b[^>]*>\\s*</span>", with: "", options: [.caseInsensitive])
-        result = replacingRegex(in: result, pattern: "<b\\b[^>]*>\\s*</b>", with: "", options: [.caseInsensitive])
-        result = replacingRegex(in: result, pattern: "<strong\\b[^>]*>\\s*</strong>", with: "", options: [.caseInsensitive])
+        // Run this more than once so nested wrappers are removed from the inside out.
+        let emptyInlineWrapperPattern = "<(?:strong|b|span|em|i|u|s|del|a)\\b[^>]*>\\s*</(?:strong|b|span|em|i|u|s|del|a)>"
+        for _ in 0..<3 {
+            result = replacingRegex(in: result, pattern: emptyInlineWrapperPattern, with: "", options: [.caseInsensitive])
+        }
 
         return result
+    }
+
+    private static func replaceStandalonePrivateUseListMarkers(from html: String) -> String {
+        let markerPattern = "(?:\(RichTextListMarkers.slackPrivateUseBullet)|&#58630;|&#x[eE]506;)"
+
+        // A private-use list glyph outside <li> still carries list meaning.
+        // Replace it with a normal bullet only at the start of a block. The
+        // look-ahead allows inline wrappers such as <span>...</span> between
+        // the glyph and the following whitespace.
+        let blockStartPattern = "((?:^|<(?:p|div|h[1-6]|blockquote|td|th)\\b[^>]*>)(?:(?!<(?:pre|code)\\b)(?:\\s|&nbsp;|<[^>]+>))*)"
+        let followingWhitespace = "(?=(?:(?:</?[^>]+>)*)(?:[ \\t]|&nbsp;))"
+        return replacingRegex(
+            in: html,
+            pattern: blockStartPattern + markerPattern + followingWhitespace,
+            with: "$1•",
+            options: [.caseInsensitive]
+        )
     }
 
     private static func replacingRegex(in input: String, pattern: String, with replacement: String, options: NSRegularExpression.Options = []) -> String {
@@ -105,6 +131,122 @@ extension String {
     }
 }
 
+enum RichTextListMarkers {
+    static let slackPrivateUseBullet = "\u{E506}"
+
+    enum Kind {
+        case unordered
+        case ordered
+    }
+
+    struct Match {
+        let kind: Kind
+        let markerRange: Range<String.Index>
+        let separatorRange: Range<String.Index>
+        let marker: Character
+    }
+
+    private static let unorderedCharacters: Set<Character> = ["•", "·", "◦", "▪", "‣", "-", "*", "+", "\u{E506}"]
+
+    static func match(in line: String) -> Match? {
+        var index = line.startIndex
+        while index < line.endIndex, isHorizontalWhitespace(line[index]) {
+            index = line.index(after: index)
+        }
+        guard index < line.endIndex else { return nil }
+
+        let marker = line[index]
+        if unorderedCharacters.contains(marker) {
+            let afterMarker = line.index(after: index)
+            guard afterMarker < line.endIndex, isHorizontalWhitespace(line[afterMarker]) else {
+                return nil
+            }
+
+            let separatorEnd = endOfHorizontalWhitespace(in: line, from: afterMarker)
+            return Match(
+                kind: .unordered,
+                markerRange: index..<afterMarker,
+                separatorRange: afterMarker..<separatorEnd,
+                marker: marker
+            )
+        }
+
+        if marker.isNumber || marker.isLetter {
+            var cursor = line.index(after: index)
+            var digitOrLetterCount = 1
+            while cursor < line.endIndex,
+                  digitOrLetterCount < 3,
+                  line[cursor].isNumber == marker.isNumber,
+                  line[cursor].isLetter == marker.isLetter {
+                cursor = line.index(after: cursor)
+                digitOrLetterCount += 1
+            }
+
+            if cursor < line.endIndex, line[cursor] == "." || line[cursor] == ")" {
+                cursor = line.index(after: cursor)
+            }
+            guard cursor < line.endIndex, isHorizontalWhitespace(line[cursor]) else {
+                return nil
+            }
+
+            let separatorEnd = endOfHorizontalWhitespace(in: line, from: cursor)
+            return Match(
+                kind: .ordered,
+                markerRange: index..<cursor,
+                separatorRange: cursor..<separatorEnd,
+                marker: marker
+            )
+        }
+
+        return nil
+    }
+
+    static func normalizedMarkdownLine(_ line: String, replacingPrivateUseMarker: Bool = true) -> String? {
+        guard let match = match(in: line), match.kind == .unordered else {
+            return nil
+        }
+        if !replacingPrivateUseMarker, match.marker == "\u{E506}" {
+            return nil
+        }
+
+        let indent = String(line[..<match.markerRange.lowerBound])
+        let rest = String(line[match.separatorRange.upperBound...])
+        return indent + "- " + rest
+    }
+
+    static func displayMarkdownLine(_ line: String) -> String? {
+        guard let match = match(in: line), match.kind == .unordered else {
+            return nil
+        }
+
+        let indent = String(line[..<match.markerRange.lowerBound])
+        let rest = String(line[match.separatorRange.upperBound...])
+        return indent + "• " + rest
+    }
+
+    static func markerRange(in paragraph: String) -> NSRange? {
+        guard let match = match(in: paragraph) else { return nil }
+        return NSRange(match.markerRange, in: paragraph)
+    }
+
+    static func isCodeFence(_ line: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        return trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~")
+    }
+
+    private static func isHorizontalWhitespace(_ character: Character) -> Bool {
+        character == " " || character == "\t" || character == "\u{00A0}"
+    }
+
+    private static func endOfHorizontalWhitespace(in line: String, from start: String.Index) -> String.Index {
+        var index = start
+        while index < line.endIndex, isHorizontalWhitespace(line[index]) {
+            index = line.index(after: index)
+        }
+        return index
+    }
+}
+
 enum RichTextConverter {
     static func attributedString(from payload: RichTextPayload) -> NSAttributedString {
         let baseFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
@@ -112,14 +254,16 @@ enum RichTextConverter {
 
         if let rtf = payload.rtf,
            let attributed = try? NSAttributedString(data: rtf, options: [.documentType: NSAttributedString.DocumentType.rtf], documentAttributes: nil) {
-            let normalized = normalizedListMarkers(in: normalizedFonts(in: attributed, baseFont: baseFont))
-            return applyingBaseAttributesIfMissing(to: normalized, baseFont: baseFont, baseColor: baseColor)
+            let normalizedPrivateUseMarkers = replacingPrivateUseListMarkers(in: attributed)
+            let normalized = normalizedListMarkers(in: normalizedPrivateUseMarkers)
+            let normalizedFonts = normalizedFonts(in: normalized, baseFont: baseFont)
+            return applyingBaseAttributesIfMissing(to: normalizedFonts, baseFont: baseFont, baseColor: baseColor)
         }
 
         if let html = payload.html,
-           let data = html.data(using: .utf8),
+           let sanitizedHTML = RichTextHTMLSanitizer.sanitize(html).data(using: .utf8),
            let attributed = try? NSAttributedString(
-            data: data,
+            data: sanitizedHTML,
             options: [
                 .documentType: NSAttributedString.DocumentType.html,
                 .characterEncoding: String.Encoding.utf8.rawValue,
@@ -130,61 +274,88 @@ enum RichTextConverter {
             ],
             documentAttributes: nil
            ) {
-            let normalized = normalizedListMarkers(in: normalizedFonts(in: attributed, baseFont: baseFont))
-            return applyingBaseAttributesIfMissing(to: normalized, baseFont: baseFont, baseColor: baseColor)
+            // The HTML sanitizer has already handled every list-position
+            // private-use marker. Leave any remaining marker untouched so
+            // code blocks (for example <pre>...</pre>) remain verbatim.
+            let normalized = normalizedListMarkers(in: attributed)
+            let normalizedFonts = normalizedFonts(in: normalized, baseFont: baseFont)
+            return applyingBaseAttributesIfMissing(to: normalizedFonts, baseFont: baseFont, baseColor: baseColor)
         }
 
-        return NSAttributedString(string: payload.plain.normalizedPlainText(), attributes: [
-            .font: baseFont,
-            .foregroundColor: baseColor
-        ])
+        return attributedString(fromMarkdown: payload.plain.normalizedPlainText())
     }
 
-    static func payload(fromMarkdown markdown: String) -> RichTextPayload {
-        let normalizedMarkdown = normalizedMarkdown(markdown)
-        let trimmedNewlines = normalizedMarkdown.trimmingCharacters(in: .newlines)
+    static func attributedString(fromMarkdown markdown: String) -> NSAttributedString {
+        let normalized = normalizedMarkdown(markdown)
+        let trimmedNewlines = normalized.trimmingCharacters(in: .newlines)
         guard !trimmedNewlines.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return RichTextPayload(plain: "", html: nil, rtf: nil)
-        }
-
-        guard #available(macOS 12.0, *) else {
-            let plain = trimmedNewlines.normalizedPlainText()
-            return RichTextPayload(plain: plain, html: nil, rtf: nil)
+            return NSAttributedString(string: "")
         }
 
         let baseFont = NSFont.preferredFont(forTextStyle: .body)
         let baseColor = NSColor.labelColor
 
+        guard #available(macOS 12.0, *) else {
+            return NSAttributedString(string: trimmedNewlines, attributes: [
+                .font: baseFont,
+                .foregroundColor: baseColor
+            ])
+        }
+
         do {
             var options = AttributedString.MarkdownParsingOptions()
             options.interpretedSyntax = .inlineOnlyPreservingWhitespace
             options.failurePolicy = .returnPartiallyParsedIfPossible
-            let prepared = preparedMarkdown(trimmedNewlines)
+            let prepared = preparedMarkdownForDisplay(trimmedNewlines)
             let attributed = try AttributedString(markdown: prepared, options: options)
             let attributedString = NSAttributedString(attributed)
-            let normalized = normalizedListMarkers(in: normalizedFonts(in: attributedString, baseFont: baseFont))
-            let finalized = applyingBaseAttributesIfMissing(to: normalized, baseFont: baseFont, baseColor: baseColor)
-            let rtf = self.rtf(from: finalized)
-            let html = self.html(from: finalized)
-            let plain = finalized.string.normalizedPlainText()
-            return RichTextPayload(plain: plain, html: html, rtf: rtf)
+            let normalizedMarkers = normalizedListMarkers(in: attributedString)
+            let normalizedFonts = normalizedFonts(in: normalizedMarkers, baseFont: baseFont)
+            return applyingBaseAttributesIfMissing(to: normalizedFonts, baseFont: baseFont, baseColor: baseColor)
         } catch {
-            let plain = trimmedNewlines.normalizedPlainText()
-            return RichTextPayload(plain: plain, html: nil, rtf: nil)
+            return NSAttributedString(string: trimmedNewlines, attributes: [
+                .font: baseFont,
+                .foregroundColor: baseColor
+            ])
         }
     }
 
-    static func normalizedMarkdown(_ raw: String) -> String {
+    static func payload(fromMarkdown markdown: String) -> RichTextPayload {
+        let normalized = normalizedMarkdown(markdown)
+        let trimmedNewlines = normalized.trimmingCharacters(in: .newlines)
+        guard !trimmedNewlines.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return RichTextPayload(plain: "", html: nil, rtf: nil)
+        }
+
+        let finalized = attributedString(fromMarkdown: trimmedNewlines)
+        return RichTextPayload(
+            plain: finalized.string.normalizedPlainText(),
+            html: html(from: finalized),
+            rtf: rtf(from: finalized)
+        )
+    }
+
+    static func normalizedMarkdown(_ raw: String, replacingPrivateUseMarkers: Bool = true) -> String {
         let normalizedNewlines = raw
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
 
         var lines: [String] = []
         lines.reserveCapacity(normalizedNewlines.count / 20)
+        var isInsideCodeFence = false
 
-        normalizedNewlines.enumerateLines { line, _ in
-            // Convert common bullet glyphs into Markdown list markers.
-            if let converted = convertBulletLineToMarkdown(line) {
+        for line in normalizedNewlines.components(separatedBy: "\n") {
+            if RichTextListMarkers.isCodeFence(line) {
+                lines.append(line)
+                isInsideCodeFence.toggle()
+                continue
+            }
+
+            if !isInsideCodeFence,
+               let converted = RichTextListMarkers.normalizedMarkdownLine(
+                   line,
+                   replacingPrivateUseMarker: replacingPrivateUseMarkers
+               ) {
                 lines.append(converted)
             } else {
                 lines.append(line)
@@ -194,48 +365,43 @@ enum RichTextConverter {
         return lines.joined(separator: "\n")
     }
 
-    private static func convertBulletLineToMarkdown(_ line: String) -> String? {
-        // Preserve indentation and replace "• " / "· " / "◦ " etc with "- ".
-        let bulletChars: Set<Character> = ["•", "·", "◦", "▪", "‣"]
+    private static func preparedMarkdownForDisplay(_ raw: String) -> String {
+        var lines: [String] = []
+        lines.reserveCapacity(raw.count / 20)
+        var isInsideCodeFence = false
 
-        var index = line.startIndex
-        while index < line.endIndex, line[index] == " " || line[index] == "\t" {
-            index = line.index(after: index)
+        for line in raw.components(separatedBy: "\n") {
+            if RichTextListMarkers.isCodeFence(line) {
+                lines.append(line)
+                isInsideCodeFence.toggle()
+                continue
+            }
+
+            if !isInsideCodeFence,
+               let converted = RichTextListMarkers.displayMarkdownLine(line) {
+                lines.append(converted)
+            } else {
+                lines.append(line)
+            }
         }
-        guard index < line.endIndex else { return nil }
-        let bullet = line[index]
-        guard bulletChars.contains(bullet) else { return nil }
 
-        let afterBullet = line.index(after: index)
-        guard afterBullet < line.endIndex else { return nil }
-        guard line[afterBullet] == " " || line[afterBullet] == "\t" else { return nil }
-
-        let indent = String(line[..<index])
-        let rest = String(line[line.index(after: afterBullet)...])
-        return indent + "- " + rest
-    }
-
-    @available(macOS 12.0, *)
-    private static func preparedMarkdown(_ raw: String) -> String {
-        raw
-            .replacingOccurrences(of: "\r\n", with: "\n")
-            .replacingOccurrences(of: "\r", with: "\n")
+        return lines.joined(separator: "\n")
     }
 
     private static func normalizedListMarkers(in attributed: NSAttributedString) -> NSAttributedString {
         guard attributed.length > 0 else { return attributed }
 
         let mutable = NSMutableAttributedString(attributedString: attributed)
-        let fullNSString = mutable.string as NSString
-
-        let bulletPattern = "^(?:[\\s\\u00A0]*)(?:[•·◦▪‣\\-*])(?:[\\s\\u00A0]+)"
+        let bulletPattern = "^(?:[\\s\\u00A0]*)(?:[•·◦▪‣\\-*+])(?:[\\s\\u00A0]+)"
         let orderedPattern = "^(?:[\\s\\u00A0]*)(?:(?:\\(?\\d{1,3}[\\).])|(?:\\d{1,3})|(?:[A-Za-z][\\).]))(?:[\\s\\u00A0]+)"
         let bulletRegex = try? NSRegularExpression(pattern: bulletPattern, options: [])
         let orderedRegex = try? NSRegularExpression(pattern: orderedPattern, options: [])
 
+        var rangesToDelete: [NSRange] = []
         var location = 0
         while location < mutable.length {
-            let paragraphRange = fullNSString.paragraphRange(for: NSRange(location: location, length: 0))
+            let currentString = mutable.string as NSString
+            let paragraphRange = currentString.paragraphRange(for: NSRange(location: location, length: 0))
             location = NSMaxRange(paragraphRange)
 
             guard paragraphRange.length > 0 else { continue }
@@ -245,7 +411,7 @@ enum RichTextConverter {
             guard !paragraphStyle.textLists.isEmpty else { continue }
 
             // Remove duplicated literal markers that were copied into the content (e.g. "1. " inside an <ol><li>).
-            let paragraphText = fullNSString.substring(with: paragraphRange) as NSString
+            let paragraphText = currentString.substring(with: paragraphRange) as NSString
             let localRange = NSRange(location: 0, length: paragraphText.length)
 
             let match = bulletRegex?.firstMatch(in: paragraphText as String, options: [], range: localRange)
@@ -253,10 +419,50 @@ enum RichTextConverter {
 
             guard let match, match.range.length > 0 else { continue }
 
-            let deleteRange = NSRange(location: paragraphRange.location + match.range.location, length: match.range.length)
-            mutable.deleteCharacters(in: deleteRange)
+            rangesToDelete.append(NSRange(location: paragraphRange.location + match.range.location, length: match.range.length))
         }
 
+        for range in rangesToDelete.reversed() {
+            mutable.deleteCharacters(in: range)
+        }
+
+        return mutable
+    }
+
+    private static func replacingPrivateUseListMarkers(in attributed: NSAttributedString) -> NSAttributedString {
+        guard attributed.length > 0 else { return attributed }
+
+        let mutable = NSMutableAttributedString(attributedString: attributed)
+        var replacements: [NSRange] = []
+        var location = 0
+
+        while location < mutable.length {
+            let currentString = mutable.string as NSString
+            let paragraphRange = currentString.paragraphRange(for: NSRange(location: location, length: 0))
+            location = NSMaxRange(paragraphRange)
+
+            guard paragraphRange.length > 0 else { continue }
+            let paragraphText = currentString.substring(with: paragraphRange)
+            guard let markerRange = RichTextListMarkers.markerRange(in: paragraphText),
+                  (paragraphText as NSString).substring(with: markerRange) == RichTextListMarkers.slackPrivateUseBullet else {
+                continue
+            }
+
+            let absoluteMarkerLocation = paragraphRange.location + markerRange.location
+            if let font = mutable.attribute(.font, at: absoluteMarkerLocation, effectiveRange: nil) as? NSFont,
+               font.fontDescriptor.symbolicTraits.contains(.monoSpace) {
+                // A monospaced paragraph is the usual RTF representation of a
+                // code block. Preserve its contents, including a private-use
+                // character that may be intentional code data.
+                continue
+            }
+
+            replacements.append(NSRange(location: absoluteMarkerLocation, length: markerRange.length))
+        }
+
+        for range in replacements.reversed() {
+            mutable.replaceCharacters(in: range, with: "•")
+        }
         return mutable
     }
 
@@ -363,7 +569,8 @@ enum RichTextConverter {
     }
 
     static func plain(fromHTML html: String) -> String {
-        guard let data = html.data(using: .utf8),
+        let sanitizedHTML = RichTextHTMLSanitizer.sanitize(html)
+        guard let data = sanitizedHTML.data(using: .utf8),
               let attributed = try? NSAttributedString(
                 data: data,
                 options: [
@@ -376,24 +583,33 @@ enum RichTextConverter {
             return html
         }
 
-        return attributed.string.normalizedPlainText()
+        return normalizedMarkdown(
+            attributed.string.normalizedPlainText(),
+            replacingPrivateUseMarkers: false
+        )
     }
 }
 
 enum RichTextPasteboard {
     static func read(from pasteboard: NSPasteboard) -> RichTextPayload? {
         let rtf = pasteboard.data(forType: .rtf)
-        let html = pasteboard.string(forType: .html)
+        let rawHTML = pasteboard.string(forType: .html)
             ?? pasteboard.data(forType: .html).flatMap { String(data: $0, encoding: .utf8) }
+        let html = rawHTML.map(RichTextHTMLSanitizer.sanitize)
 
         let plain: String
         if let plainString = pasteboard.string(forType: .string) {
-            plain = plainString.normalizedPlainText()
+            plain = RichTextConverter.normalizedMarkdown(plainString.normalizedPlainText())
         } else if let html {
             plain = RichTextConverter.plain(fromHTML: html)
         } else if let rtf,
                   let attributed = try? NSAttributedString(data: rtf, options: [.documentType: NSAttributedString.DocumentType.rtf], documentAttributes: nil) {
-            plain = attributed.string.normalizedPlainText()
+            let payload = RichTextPayload(plain: attributed.string, html: nil, rtf: rtf)
+            let normalizedAttributed = RichTextConverter.attributedString(from: payload)
+            plain = RichTextConverter.normalizedMarkdown(
+                normalizedAttributed.string.normalizedPlainText(),
+                replacingPrivateUseMarkers: false
+            )
         } else {
             return nil
         }
@@ -406,7 +622,7 @@ enum RichTextPasteboard {
             ? RichTextConverter.attributedString(from: payload)
             : nil
         let rtf = payload.rtf ?? attributed.flatMap(RichTextConverter.rtf(from:))
-        let html = payload.html ?? attributed.flatMap(RichTextConverter.html(from:))
+        let html = payload.html.map(RichTextHTMLSanitizer.sanitize) ?? attributed.flatMap(RichTextConverter.html(from:))
 
         pasteboard.clearContents()
 
@@ -417,6 +633,6 @@ enum RichTextPasteboard {
             pasteboard.setData(data, forType: .html)
         }
 
-        pasteboard.setString(payload.plain, forType: .string)
+        pasteboard.setString(RichTextConverter.normalizedMarkdown(payload.plain), forType: .string)
     }
 }

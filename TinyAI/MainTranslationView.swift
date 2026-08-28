@@ -213,7 +213,7 @@ struct MainTranslationView: View {
             isPrimaryLoading = false
             switch result {
             case .success(let text):
-                primaryOutputText = text
+                primaryOutputText = RichTextConverter.normalizedMarkdown(text)
             case .failure(let error):
                 if (error as? URLError)?.code == .cancelled { return }
                 primaryOutputText = ""
@@ -390,7 +390,7 @@ struct MainTranslationView: View {
     }
 
 	    private func processText() {
-	        let normalized = sourceText.normalizedPlainText()
+	        let normalized = RichTextConverter.normalizedMarkdown(sourceText.normalizedPlainText())
 	        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             primaryNetworkTask?.cancel()
             secondaryNetworkTask?.cancel()
@@ -407,7 +407,7 @@ struct MainTranslationView: View {
 	    }
 
 	    private func processPrimaryText() {
-	        let normalized = sourceText.normalizedPlainText()
+	        let normalized = RichTextConverter.normalizedMarkdown(sourceText.normalizedPlainText())
 	        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 	        processPrimaryText(using: normalized)
 	    }
@@ -422,7 +422,7 @@ struct MainTranslationView: View {
 	    }
 
 	    private func processSecondaryText() {
-	        let normalized = sourceText.normalizedPlainText()
+	        let normalized = RichTextConverter.normalizedMarkdown(sourceText.normalizedPlainText())
 	        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 	        processSecondaryText(using: normalized)
 	    }
@@ -498,7 +498,7 @@ struct MainTranslationView: View {
                 isPrimaryLoading = false
                 switch result {
                 case .success(let text):
-                    primaryOutputText = text
+                    primaryOutputText = RichTextConverter.normalizedMarkdown(text)
                 case .failure(let error):
                     if (error as? URLError)?.code == .cancelled { return }
                     primaryOutputText = ""
@@ -524,7 +524,7 @@ struct MainTranslationView: View {
                 secondaryRunningActionId = nil
                 switch result {
                 case .success(let text):
-                    secondaryOutputText = text
+                    secondaryOutputText = RichTextConverter.normalizedMarkdown(text)
                 case .failure(let error):
                     if (error as? URLError)?.code == .cancelled { return }
                     secondaryOutputText = ""
@@ -539,7 +539,7 @@ struct MainTranslationView: View {
             return
         }
 
-        let normalized = sourceText.normalizedPlainText()
+        let normalized = RichTextConverter.normalizedMarkdown(sourceText.normalizedPlainText())
         guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return
         }

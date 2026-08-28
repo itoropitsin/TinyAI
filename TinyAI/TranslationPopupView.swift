@@ -377,7 +377,7 @@ struct TranslationPopupView: View {
     }
 
 	    private func processText() {
-	        let normalized = selectedText.normalizedPlainText()
+	        let normalized = RichTextConverter.normalizedMarkdown(selectedText.normalizedPlainText())
 	        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             primaryNetworkTask?.cancel()
             secondaryNetworkTask?.cancel()
@@ -396,7 +396,7 @@ struct TranslationPopupView: View {
 	    }
 
 	    private func processPrimaryText() {
-	        let normalized = selectedText.normalizedPlainText()
+	        let normalized = RichTextConverter.normalizedMarkdown(selectedText.normalizedPlainText())
 	        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 	        processPrimaryText(using: normalized)
 	    }
@@ -411,7 +411,7 @@ struct TranslationPopupView: View {
 	    }
 
 	    private func processSecondaryText() {
-	        let normalized = selectedText.normalizedPlainText()
+	        let normalized = RichTextConverter.normalizedMarkdown(selectedText.normalizedPlainText())
 	        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 	        processSecondaryText(using: normalized)
 	    }
@@ -638,7 +638,7 @@ struct TranslationPopupView: View {
             return
         }
 
-        let normalized = selectedText.normalizedPlainText()
+        let normalized = RichTextConverter.normalizedMarkdown(selectedText.normalizedPlainText())
         guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return
         }
