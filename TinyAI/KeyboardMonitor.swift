@@ -114,6 +114,11 @@ class KeyboardMonitor: ObservableObject {
     
     private var lastPopupHotkeyPressTime: Date?
     private let doublePressInterval: TimeInterval = 0.5
+    private var pendingDoublePressPasteboardChangeCount: Int?
+    private var pendingDoublePressPayload: RichTextPayload?
+    private var pendingDoublePressCaptureWorkItem: DispatchWorkItem?
+    private let pasteboardPollInterval: TimeInterval = 0.01
+    private let pasteboardCopyTimeout: TimeInterval = 0.20
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var isProcessing: Bool = false // Protection against multiple triggers
@@ -160,6 +165,7 @@ class KeyboardMonitor: ObservableObject {
     }
     
     deinit {
+        pendingDoublePressCaptureWorkItem?.cancel()
         stopMonitoring()
     }
 
@@ -220,6 +226,7 @@ class KeyboardMonitor: ObservableObject {
 
         popupHotkey = shortcut
         popupHotkeyPressMode = pressMode
+        clearPendingDoublePressState()
 
         let defaults = UserDefaults.standard
         defaults.set(shortcut.keyCode, forKey: popupHotkeyKeyCodeDefaultsKey)
@@ -329,16 +336,36 @@ class KeyboardMonitor: ObservableObject {
                 case .doublePress:
                     if let lastPress = lastPopupHotkeyPressTime,
                        now.timeIntervalSince(lastPress) < doublePressInterval {
+                        let previousPasteboardChangeCount = pendingDoublePressPasteboardChangeCount
+                        let pendingPayload = pendingDoublePressPayload
+                        clearPendingDoublePressState()
                         if !isProcessing {
                             isProcessing = true
                             DispatchQueue.main.async { [weak self] in
-                                self?.handlePopupHotkeyTriggered()
+                                self?.handlePopupHotkeyTriggered(
+                                    previousPasteboardChangeCount: previousPasteboardChangeCount,
+                                    pendingPayload: pendingPayload
+                                )
                             }
                         }
                         return nil
                     }
 
                     lastPopupHotkeyPressTime = now
+                    let canReuseNaturalCopy = popupHotkey.keyCode == 8 && popupHotkey.modifiers == [.command]
+                    if canReuseNaturalCopy {
+                        pendingDoublePressPasteboardChangeCount = NSPasteboard.general.changeCount
+                        pendingDoublePressPayload = nil
+                        pendingDoublePressCaptureWorkItem?.cancel()
+                        let baseline = pendingDoublePressPasteboardChangeCount ?? 0
+                        let captureWorkItem = DispatchWorkItem { [weak self] in
+                            self?.captureDoublePressPasteboardIfAvailable(baseline: baseline)
+                        }
+                        pendingDoublePressCaptureWorkItem = captureWorkItem
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: captureWorkItem)
+                    } else {
+                        clearPendingDoublePressState()
+                    }
                     return Unmanaged.passUnretained(event)
                 }
             }
@@ -347,11 +374,17 @@ class KeyboardMonitor: ObservableObject {
         return Unmanaged.passUnretained(event)
     }
     
-    private func handlePopupHotkeyTriggered() {
+    private func handlePopupHotkeyTriggered(
+        previousPasteboardChangeCount: Int? = nil,
+        pendingPayload: RichTextPayload? = nil
+    ) {
         // Ensure we are on the main thread
         guard Thread.isMainThread else {
             DispatchQueue.main.async { [weak self] in
-                self?.handlePopupHotkeyTriggered()
+                self?.handlePopupHotkeyTriggered(
+                    previousPasteboardChangeCount: previousPasteboardChangeCount,
+                    pendingPayload: pendingPayload
+                )
             }
             return
         }
@@ -362,9 +395,31 @@ class KeyboardMonitor: ObservableObject {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.isProcessing = false
             }
+        } else if var pendingPayload, !pendingPayload.plain.isEmpty {
+            pendingPayload.replacementTarget = focusedTextReplacementTarget()
+            onPopupHotkey?(pendingPayload)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.isProcessing = false
+            }
         } else {
             // Fallback: use the pasteboard
             let pasteboard = NSPasteboard.general
+
+            // A double ⌘C normally already placed the selected text on the
+            // pasteboard. Use that copy immediately when it is newer than the
+            // snapshot taken before the first press.
+            if let previousPasteboardChangeCount,
+               pasteboard.changeCount != previousPasteboardChangeCount,
+               var payload = RichTextPasteboard.read(from: pasteboard),
+               !payload.plain.isEmpty {
+                payload.replacementTarget = focusedTextReplacementTarget()
+                onPopupHotkey?(payload)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                    self?.isProcessing = false
+                }
+                return
+            }
+
             let snapshot = snapshotPasteboard(pasteboard)
             let initialChangeCount = pasteboard.changeCount
             let replacementTarget = focusedTextReplacementTarget()
@@ -380,33 +435,86 @@ class KeyboardMonitor: ObservableObject {
                 keyUp.post(tap: .cghidEventTap)
             }
 
-            // Small delay to allow the copy to complete
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-                guard let self = self else { return }
-                let copiedChangeCount = pasteboard.changeCount
-                // If the target app did not copy anything, do not reuse whatever the
-                // user happened to have on the clipboard. That text could otherwise
-                // be sent to the model without the user selecting it.
-                if copiedChangeCount != initialChangeCount,
-                   var payload = RichTextPasteboard.read(from: pasteboard),
-                   !payload.plain.isEmpty {
-                    payload.replacementTarget = replacementTarget
-                    DispatchQueue.main.async {
-                        self.onPopupHotkey?(payload)
-                    }
-                }
-                // Restore only the clipboard contents produced by our synthetic copy.
-                // If the user copied something else in the meantime, never overwrite it.
-                if copiedChangeCount != initialChangeCount,
-                   pasteboard.changeCount == copiedChangeCount {
-                    restorePasteboard(pasteboard, snapshot: snapshot)
-                }
-                self.isSimulatingCopy = false
-                // Reset the flag after processing
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.85) {
-                    self.isProcessing = false
-                }
+            waitForPasteboardCopy(
+                pasteboard: pasteboard,
+                snapshot: snapshot,
+                initialChangeCount: initialChangeCount,
+                replacementTarget: replacementTarget,
+                startedAt: Date()
+            )
+        }
+    }
+
+    private func clearPendingDoublePressState() {
+        pendingDoublePressPasteboardChangeCount = nil
+        pendingDoublePressPayload = nil
+        pendingDoublePressCaptureWorkItem?.cancel()
+        pendingDoublePressCaptureWorkItem = nil
+    }
+
+    private func captureDoublePressPasteboardIfAvailable(baseline: Int) {
+        guard pendingDoublePressPasteboardChangeCount == baseline,
+              !isProcessing else { return }
+
+        let pasteboard = NSPasteboard.general
+        guard pasteboard.changeCount != baseline,
+              var payload = RichTextPasteboard.read(from: pasteboard),
+              !payload.plain.isEmpty else {
+            return
+        }
+
+        payload.replacementTarget = focusedTextReplacementTarget()
+        pendingDoublePressPayload = payload
+    }
+
+    private func waitForPasteboardCopy(
+        pasteboard: NSPasteboard,
+        snapshot: PasteboardSnapshot,
+        initialChangeCount: Int,
+        replacementTarget: TextReplacementTarget?,
+        startedAt: Date
+    ) {
+        let copiedChangeCount = pasteboard.changeCount
+        let elapsed = Date().timeIntervalSince(startedAt)
+
+        if copiedChangeCount != initialChangeCount,
+           var payload = RichTextPasteboard.read(from: pasteboard),
+           !payload.plain.isEmpty {
+            payload.replacementTarget = replacementTarget
+            onPopupHotkey?(payload)
+
+            // Restore only the clipboard contents produced by our synthetic copy.
+            // If the user copied something else in the meantime, never overwrite it.
+            if pasteboard.changeCount == copiedChangeCount {
+                restorePasteboard(pasteboard, snapshot: snapshot)
             }
+            isSimulatingCopy = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.85) { [weak self] in
+                self?.isProcessing = false
+            }
+            return
+        }
+
+        if elapsed >= pasteboardCopyTimeout {
+            // Do not reuse stale clipboard data when the target application did not
+            // provide a readable selection before the deadline.
+            if copiedChangeCount != initialChangeCount,
+               pasteboard.changeCount == copiedChangeCount {
+                restorePasteboard(pasteboard, snapshot: snapshot)
+            }
+            isSimulatingCopy = false
+            isProcessing = false
+            return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + pasteboardPollInterval) { [weak self] in
+            self?.waitForPasteboardCopy(
+                pasteboard: pasteboard,
+                snapshot: snapshot,
+                initialChangeCount: initialChangeCount,
+                replacementTarget: replacementTarget,
+                startedAt: startedAt
+            )
         }
     }
 

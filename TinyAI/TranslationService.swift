@@ -46,6 +46,12 @@ struct LLMModelEntry: Codable, Hashable, Identifiable {
     }
 }
 
+struct LLMModelCatalogMergeResult {
+    var models: [LLMModelEntry]
+    var visibility: [String: Bool]
+    var availability: [String: Bool]
+}
+
 struct LLMKeyValidationError: LocalizedError, Equatable {
     let provider: LLMProvider
     let statusCode: Int?
@@ -174,6 +180,10 @@ class TranslationService: ObservableObject {
         didSet {
             saveModelAvailabilityToDefaults(llmModelAvailability)
         }
+    }
+
+    var deletedModelKeysForSettings: Set<String> {
+        deletedModelKeys
     }
 
     @Published var preferredTargetLanguage: String = "English" {
@@ -789,7 +799,7 @@ Rules:
         deletedModelKeys.formUnion(deletedKeys)
         UserDefaults.standard.set(Array(deletedModelKeys), forKey: deletedLLMModelsDefaultsKey)
 
-        llmModels = dedupModels(models).filter { !deletedModelKeys.contains($0.model.key) }
+        llmModels = Self.dedupModels(models).filter { !deletedModelKeys.contains($0.model.key) }
         llmModelVisibility = visibility.filter { !deletedModelKeys.contains($0.key) }
         llmModelAvailability = availability.filter { !deletedModelKeys.contains($0.key) }
         normalizeModelsAndVisibility()
@@ -868,11 +878,11 @@ Rules:
         llmModelVisibility = visibility
         llmModelAvailability = availability
 
-        llmModels = dedupModels(llmModels)
+        llmModels = Self.dedupModels(llmModels)
         saveModelsToDefaults(llmModels)
     }
 
-    private func dedupModels(_ models: [LLMModelEntry]) -> [LLMModelEntry] {
+    private static func dedupModels(_ models: [LLMModelEntry]) -> [LLMModelEntry] {
         var seen: Set<String> = []
         var result: [LLMModelEntry] = []
         for entry in models {
@@ -884,26 +894,59 @@ Rules:
     }
 
     private func applyFetchedModels(_ fetched: [LLMModelEntry], for provider: LLMProvider) {
-        let fetched = fetched.filter { !deletedModelKeys.contains($0.model.key) }
-        let existing = llmModels
-        let existingKeys = Set(existing.map(\.model.key))
-
-        var visibility = llmModelVisibility
-        for entry in fetched where !existingKeys.contains(entry.model.key) {
-            visibility[entry.model.key] = false
-        }
-        llmModelVisibility = visibility
-
-        llmModels = dedupModels(existing + fetched)
-
-        let fetchedKeys = Set(fetched.map(\.model.key))
-        var availability = llmModelAvailability
-        for entry in llmModels where entry.model.provider == provider {
-            availability[entry.model.key] = fetchedKeys.contains(entry.model.key)
-        }
-        llmModelAvailability = availability
+        let merged = Self.mergeFetchedModels(
+            existing: llmModels,
+            fetched: fetched,
+            visibility: llmModelVisibility,
+            availability: llmModelAvailability,
+            provider: provider,
+            deletedKeys: deletedModelKeys
+        )
+        llmModels = merged.models
+        llmModelVisibility = merged.visibility
+        llmModelAvailability = merged.availability
 
         saveModelsToDefaults(llmModels)
+    }
+
+    static func mergeFetchedModels(
+        existing: [LLMModelEntry],
+        fetched: [LLMModelEntry],
+        visibility: [String: Bool],
+        availability: [String: Bool],
+        provider: LLMProvider,
+        deletedKeys: Set<String>
+    ) -> LLMModelCatalogMergeResult {
+        let existingModels = existing.filter { !deletedKeys.contains($0.model.key) }
+        let fetchedModels = fetched.filter {
+            $0.model.provider == provider && !deletedKeys.contains($0.model.key)
+        }
+
+        let existingKeys = Set(existingModels.map(\.model.key))
+        let mergedModels = Self.dedupModels(existingModels + fetchedModels)
+
+        var mergedVisibility = visibility.filter { !deletedKeys.contains($0.key) }
+        for entry in mergedModels where mergedVisibility[entry.model.key] == nil {
+            mergedVisibility[entry.model.key] = true
+        }
+        for entry in fetchedModels where !existingKeys.contains(entry.model.key) {
+            mergedVisibility[entry.model.key] = true
+        }
+
+        let fetchedKeys = Set(fetchedModels.map(\.model.key))
+        var mergedAvailability = availability.filter { !deletedKeys.contains($0.key) }
+        for entry in mergedModels where mergedAvailability[entry.model.key] == nil {
+            mergedAvailability[entry.model.key] = true
+        }
+        for entry in mergedModels where entry.model.provider == provider {
+            mergedAvailability[entry.model.key] = fetchedKeys.contains(entry.model.key)
+        }
+
+        return LLMModelCatalogMergeResult(
+            models: mergedModels,
+            visibility: mergedVisibility,
+            availability: mergedAvailability
+        )
     }
 
     private func validateAPIKey(_ key: String, for provider: LLMProvider) async -> Result<Void, LLMKeyValidationError> {
@@ -946,7 +989,11 @@ Rules:
             throw LLMKeyValidationError(provider: .openAI, statusCode: statusCode, message: message)
         }
 
-        let decoded = try jsonDecoder.decode(OpenAIModelsResponse.self, from: data)
+        return try Self.parseOpenAIModelEntries(data)
+    }
+
+    static func parseOpenAIModelEntries(_ data: Data) throws -> [LLMModelEntry] {
+        let decoded = try JSONDecoder().decode(OpenAIModelsResponse.self, from: data)
         let entries = decoded.data
             .filter { Self.isSupportedOpenAITextModel($0.id) }
             .map { LLMModelEntry(model: LLMModel(provider: .openAI, name: $0.id), displayName: $0.id) }
@@ -958,18 +1005,19 @@ Rules:
 
     static func isSupportedOpenAITextModel(_ modelName: String) -> Bool {
         let name = modelName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let hasTextFamilyPrefix = name.hasPrefix("gpt-")
-            || name.hasPrefix("o1")
-            || name.hasPrefix("o3")
-            || name.hasPrefix("o4")
-            || name.hasPrefix("chatgpt-")
+        let baseName = name.hasPrefix("ft:") ? String(name.dropFirst(3)) : name
+        let hasTextFamilyPrefix = baseName.hasPrefix("gpt-")
+            || baseName.hasPrefix("o1")
+            || baseName.hasPrefix("o3")
+            || baseName.hasPrefix("o4")
+            || baseName.hasPrefix("chatgpt-")
         guard hasTextFamilyPrefix else { return false }
 
         let blockedFragments = [
             "audio", "realtime", "image", "embedding", "dall-e", "whisper",
             "moderation", "computer-use", "transcribe", "tts"
         ]
-        return !blockedFragments.contains(where: { name.contains($0) })
+        return !blockedFragments.contains(where: { baseName.contains($0) })
     }
 
     private struct GeminiModelsResponse: Decodable {

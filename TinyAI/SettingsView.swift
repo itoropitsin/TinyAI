@@ -151,7 +151,7 @@ struct SettingsView: View {
             draftModels = translationService.llmModels
             draftModelVisibility = translationService.llmModelVisibility
             draftModelAvailability = translationService.llmModelAvailability
-            deletedModelKeys = []
+            deletedModelKeys = translationService.deletedModelKeysForSettings
             validatedKeyCandidates = [
                 .openAI: openAIKey.trimmingCharacters(in: .whitespacesAndNewlines),
                 .gemini: geminiKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -372,13 +372,28 @@ struct SettingsView: View {
         busyProviders.insert(provider)
 
         let key = provider == .openAI ? openAIKey : geminiKey
+        let existingKeys = Set(draftModels.map(\.model.key))
         Task { @MainActor in
+            defer { busyProviders.remove(provider) }
+
             let result = await translationService.fetchModelsForSettings(for: provider, apiKey: key)
-            busyProviders.remove(provider)
 
             switch result {
             case .success(let models):
                 applyFetchedModelsToDraft(models, for: provider)
+                let addedCount = Set(draftModels.map(\.model.key)).subtracting(existingKeys).count
+
+                if models.isEmpty {
+                    apiAlert = APIAlert(
+                        title: "No compatible models",
+                        message: "\(provider.displayName) returned no models supported by TinyAI."
+                    )
+                } else if addedCount == 0 {
+                    apiAlert = APIAlert(
+                        title: "Models are up to date",
+                        message: "No new \(provider.displayName) models were found for this API key."
+                    )
+                }
             case .failure(let error):
                 apiAlert = APIAlert(
                     title: "Failed to refresh models",
@@ -389,21 +404,17 @@ struct SettingsView: View {
     }
 
     private func applyFetchedModelsToDraft(_ fetched: [LLMModelEntry], for provider: LLMProvider) {
-        let fetched = fetched.filter { !deletedModelKeys.contains($0.model.key) }
-        let existingKeys = Set(draftModels.map(\.model.key))
-        for entry in fetched where !existingKeys.contains(entry.model.key) {
-            draftModelVisibility[entry.model.key] = false
-        }
-        draftModels = dedupDraftModels(draftModels + fetched)
-        let fetchedKeys = Set(fetched.map(\.model.key))
-        for entry in draftModels where entry.model.provider == provider {
-            draftModelAvailability[entry.model.key] = fetchedKeys.contains(entry.model.key)
-        }
-    }
-
-    private func dedupDraftModels(_ models: [LLMModelEntry]) -> [LLMModelEntry] {
-        var seen: Set<String> = []
-        return models.filter { seen.insert($0.model.key).inserted }
+        let merged = TranslationService.mergeFetchedModels(
+            existing: draftModels,
+            fetched: fetched,
+            visibility: draftModelVisibility,
+            availability: draftModelAvailability,
+            provider: provider,
+            deletedKeys: deletedModelKeys
+        )
+        draftModels = merged.models
+        draftModelVisibility = merged.visibility
+        draftModelAvailability = merged.availability
     }
 
     private func modelRow(_ entry: LLMModelEntry) -> some View {

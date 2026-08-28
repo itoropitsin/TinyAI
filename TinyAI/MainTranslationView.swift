@@ -53,7 +53,7 @@ struct MainTranslationView: View {
                         .frame(minWidth: 220)
                         .scrollContentBackground(.hidden)
                         .padding(8)
-                        .onChange(of: sourceText) { _, _ in
+                        .onChange(of: sourceText) { oldValue, newValue in
                             processingTask?.cancel()
                             textChangeGeneration += 1
                             let generation = textChangeGeneration
@@ -72,14 +72,17 @@ struct MainTranslationView: View {
                             primaryOutputText = ""
                             secondaryOutputText = ""
                             
-                            if !sourceText.isEmpty {
-                                // Create a new task with delay for debounce
+                            if !newValue.isEmpty {
+                                // Use a short delay for bulk edits such as a paste and
+                                // a slightly longer delay while the user is typing.
+                                // Every new edit still cancels the previous work item.
+                                let delay = Self.processingDelay(for: oldValue, newValue: newValue)
                                 let task = DispatchWorkItem {
                                     guard generation == textChangeGeneration else { return }
                                     processText()
                                 }
                                 processingTask = task
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: task)
+                                DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: task)
                             }
                         }
                 }
@@ -177,6 +180,20 @@ struct MainTranslationView: View {
         } message: {
             Text(translationService.errorMessage ?? "")
         }
+    }
+
+    static func processingDelay(for oldValue: String, newValue: String) -> TimeInterval {
+        let oldLength = oldValue.count
+        let newLength = newValue.count
+
+        // A transition from empty text or a multi-character change is most likely
+        // a paste or a replacement of a selected range. Those edits can be sent
+        // almost immediately without making normal typing issue one request per key.
+        if (oldValue.isEmpty && newLength > 1) || abs(newLength - oldLength) > 1 {
+            return 0.05
+        }
+
+        return 0.30
     }
 
     private func runBuiltInTranslate(target: OutputTarget, text: String) {

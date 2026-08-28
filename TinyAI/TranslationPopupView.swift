@@ -10,8 +10,11 @@ struct TranslationPopupView: View {
     @EnvironmentObject var keyboardMonitor: KeyboardMonitor
     @State private var primaryOutputText: String = ""
     @State private var secondaryOutputText: String = ""
-    @State private var primaryOutputPayload: RichTextPayload?
-    @State private var secondaryOutputPayload: RichTextPayload?
+    @State private var primaryOutputPayloadCache: RichTextPayload?
+    @State private var secondaryOutputPayloadCache: RichTextPayload?
+    @State private var preparedSelectionHTML: String?
+    @State private var hasPreparedSelectionHTML: Bool = false
+    @State private var isPreparingOutput: Bool = false
     @State private var showError: Bool = false
     @State private var isPrimaryLoading: Bool = false
     @State private var isSecondaryLoading: Bool = false
@@ -186,7 +189,11 @@ struct TranslationPopupView: View {
         .onAppear {
             keyboardMonitor.isCustomActionHotkeysEnabled = true
             refreshTitles()
-            processText()
+            // Let the popup become visible before preparing rich selection data
+            // and starting the network requests.
+            DispatchQueue.main.async {
+                processText()
+            }
         }
 	        .onDisappear {
 	            keyboardMonitor.isCustomActionHotkeysEnabled = false
@@ -293,21 +300,21 @@ struct TranslationPopupView: View {
                 }
 
                 Button(action: {
-                    copyToClipboard(primaryOutputPayload ?? RichTextPayload(plain: primaryOutputText, html: nil, rtf: nil))
+                    copyOutput(target: .primary)
                 }) {
                     Image(systemName: "doc.on.doc")
                 }
                 .buttonStyle(.borderless)
                 .hoverHighlight()
                 .help("Copy")
-                .disabled(primaryOutputText.isEmpty || isPrimaryLoading)
+                .disabled(primaryOutputText.isEmpty || isPrimaryLoading || isPreparingOutput)
 
                 Button("Replace") {
-                    replaceText(with: primaryOutputPayload ?? RichTextPayload(plain: primaryOutputText, html: nil, rtf: nil))
+                    replaceOutput(target: .primary)
                 }
                 .buttonStyle(.borderedProminent)
                 .hoverHighlight()
-                .disabled(primaryOutputText.isEmpty || isPrimaryLoading)
+                .disabled(primaryOutputText.isEmpty || isPrimaryLoading || isPreparingOutput)
             }
 
             outputView(text: primaryOutputText, isLoading: isPrimaryLoading, emptyText: "Result will appear here...")
@@ -346,21 +353,21 @@ struct TranslationPopupView: View {
                 Spacer()
 
                 Button(action: {
-                    copyToClipboard(secondaryOutputPayload ?? RichTextPayload(plain: secondaryOutputText, html: nil, rtf: nil))
+                    copyOutput(target: .secondary)
                 }) {
                     Image(systemName: "doc.on.doc")
                 }
                 .buttonStyle(.borderless)
                 .hoverHighlight()
                 .help("Copy")
-                .disabled(secondaryOutputText.isEmpty || isSecondaryLoading)
+                .disabled(secondaryOutputText.isEmpty || isSecondaryLoading || isPreparingOutput)
 
                 Button("Replace") {
-                    replaceText(with: secondaryOutputPayload ?? RichTextPayload(plain: secondaryOutputText, html: nil, rtf: nil))
+                    replaceOutput(target: .secondary)
                 }
                 .buttonStyle(.borderedProminent)
                 .hoverHighlight()
-                .disabled(secondaryOutputText.isEmpty || isSecondaryLoading)
+                .disabled(secondaryOutputText.isEmpty || isSecondaryLoading || isPreparingOutput)
             }
 
             outputView(text: secondaryOutputText, isLoading: isSecondaryLoading, emptyText: "Result will appear here...")
@@ -376,8 +383,8 @@ struct TranslationPopupView: View {
             secondaryNetworkTask?.cancel()
             primaryOutputText = ""
             secondaryOutputText = ""
-            primaryOutputPayload = nil
-            secondaryOutputPayload = nil
+            primaryOutputPayloadCache = nil
+            secondaryOutputPayloadCache = nil
             isPrimaryLoading = false
             isSecondaryLoading = false
             secondaryRunningActionId = nil
@@ -425,12 +432,12 @@ struct TranslationPopupView: View {
             case .primary:
                 primaryTitle = "Starred 1"
                 primaryOutputText = ""
-                primaryOutputPayload = nil
+                primaryOutputPayloadCache = nil
                 isPrimaryLoading = false
 	            case .secondary:
 	                secondaryTitle = "Starred 2"
 	                secondaryOutputText = ""
-	                secondaryOutputPayload = nil
+                    secondaryOutputPayloadCache = nil
 	                isSecondaryLoading = false
                     secondaryRunningActionId = nil
 	            }
@@ -447,7 +454,7 @@ struct TranslationPopupView: View {
         let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: translationService.preferredTargetLanguage)
         let resolvedPrompt = prompt.replacingOccurrences(of: "{{targetLanguage}}", with: resolvedTargetLanguage)
         let emptyPromptMessage = "Configure the prompt and model for this action in Settings."
-        let selectionHTML = selectionHTMLForModel()
+        let selectionHTML = preparedModelInputHTML()
 
 	        switch target {
 	        case .primary:
@@ -457,7 +464,7 @@ struct TranslationPopupView: View {
             if resolvedPrompt.isEmpty {
                 isPrimaryLoading = false
                 primaryOutputText = emptyPromptMessage
-                primaryOutputPayload = RichTextPayload(plain: emptyPromptMessage, html: nil, rtf: nil)
+                primaryOutputPayloadCache = nil
                 return
             }
 	            isPrimaryLoading = true
@@ -470,11 +477,11 @@ struct TranslationPopupView: View {
 		                    case .success(let markdown):
 		                        let normalized = RichTextConverter.normalizedMarkdown(markdown)
 		                        primaryOutputText = normalized
-		                        primaryOutputPayload = RichTextConverter.payload(fromMarkdown: normalized)
+                        primaryOutputPayloadCache = nil
 		                    case .failure(let error):
 		                        if (error as? URLError)?.code == .cancelled { return }
 		                        primaryOutputText = ""
-		                        primaryOutputPayload = nil
+                        primaryOutputPayloadCache = nil
                         translationService.errorMessage = error.localizedDescription
                         showError = true
                     }
@@ -487,11 +494,11 @@ struct TranslationPopupView: View {
 	                    case .success(let text):
 	                        let normalized = RichTextConverter.normalizedMarkdown(text)
 	                        primaryOutputText = normalized
-	                        primaryOutputPayload = RichTextConverter.payload(fromMarkdown: normalized)
+                        primaryOutputPayloadCache = nil
 	                    case .failure(let error):
 	                        if (error as? URLError)?.code == .cancelled { return }
 	                        primaryOutputText = ""
-	                        primaryOutputPayload = nil
+                        primaryOutputPayloadCache = nil
                         translationService.errorMessage = error.localizedDescription
                         showError = true
                     }
@@ -506,7 +513,7 @@ struct TranslationPopupView: View {
 	                isSecondaryLoading = false
                     secondaryRunningActionId = nil
 	                secondaryOutputText = emptyPromptMessage
-	                secondaryOutputPayload = RichTextPayload(plain: emptyPromptMessage, html: nil, rtf: nil)
+                secondaryOutputPayloadCache = nil
 	                return
 	            }
 	            isSecondaryLoading = true
@@ -520,11 +527,11 @@ struct TranslationPopupView: View {
 		                        case .success(let markdown):
 		                            let normalized = RichTextConverter.normalizedMarkdown(markdown)
 		                            secondaryOutputText = normalized
-		                            secondaryOutputPayload = RichTextConverter.payload(fromMarkdown: normalized)
+                        secondaryOutputPayloadCache = nil
 		                        case .failure(let error):
 		                            if (error as? URLError)?.code == .cancelled { return }
 		                            secondaryOutputText = ""
-		                            secondaryOutputPayload = nil
+                        secondaryOutputPayloadCache = nil
                             translationService.errorMessage = error.localizedDescription
                             showError = true
                         }
@@ -538,11 +545,11 @@ struct TranslationPopupView: View {
                         case .success(let text):
                             let normalized = RichTextConverter.normalizedMarkdown(text)
                             secondaryOutputText = normalized
-                            secondaryOutputPayload = RichTextConverter.payload(fromMarkdown: normalized)
+                        secondaryOutputPayloadCache = nil
                         case .failure(let error):
                             if (error as? URLError)?.code == .cancelled { return }
                             secondaryOutputText = ""
-                            secondaryOutputPayload = nil
+                        secondaryOutputPayloadCache = nil
                             translationService.errorMessage = error.localizedDescription
                             showError = true
                         }
@@ -563,7 +570,7 @@ struct TranslationPopupView: View {
         primaryNetworkTask?.cancel()
 
 	        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: translationService.preferredTargetLanguage)
-	        if let html = selectionHTMLForModel() {
+	        if let html = preparedModelInputHTML() {
 	            primaryNetworkTask = translationService.translateHTMLToMarkdown(html: html, targetLanguage: resolvedTargetLanguage, modelOverride: translationService.builtInTranslateModel) { result in
 	                guard primaryRequestId == requestId else { return }
 	                isPrimaryLoading = false
@@ -571,11 +578,11 @@ struct TranslationPopupView: View {
 		                case .success(let markdown):
 		                    let normalized = RichTextConverter.normalizedMarkdown(markdown)
 		                    primaryOutputText = normalized
-		                    primaryOutputPayload = RichTextConverter.payload(fromMarkdown: normalized)
+						primaryOutputPayloadCache = nil
 		                case .failure(let error):
 		                    if (error as? URLError)?.code == .cancelled { return }
 		                    primaryOutputText = ""
-		                    primaryOutputPayload = nil
+						primaryOutputPayloadCache = nil
                     translationService.errorMessage = error.localizedDescription
                     showError = true
                 }
@@ -588,11 +595,11 @@ struct TranslationPopupView: View {
 	                case .success(let text):
 	                    let normalized = RichTextConverter.normalizedMarkdown(text)
 	                    primaryOutputText = normalized
-	                    primaryOutputPayload = RichTextConverter.payload(fromMarkdown: normalized)
+	                    primaryOutputPayloadCache = nil
 	                case .failure(let error):
 	                    if (error as? URLError)?.code == .cancelled { return }
 	                    primaryOutputText = ""
-	                    primaryOutputPayload = nil
+	                    primaryOutputPayloadCache = nil
                     translationService.errorMessage = error.localizedDescription
                     showError = true
                 }
@@ -600,24 +607,33 @@ struct TranslationPopupView: View {
         }
     }
 
-    private func selectionHTMLForModel() -> String? {
+    private func preparedModelInputHTML() -> String? {
+        if hasPreparedSelectionHTML {
+            return preparedSelectionHTML
+        }
+
+        hasPreparedSelectionHTML = true
         guard let selectedPayload else { return nil }
 
         if let html = selectedPayload.html?.trimmingCharacters(in: .whitespacesAndNewlines), !html.isEmpty {
-            return RichTextHTMLSanitizer.sanitize(html)
+            let sanitized = RichTextHTMLSanitizer.sanitize(html)
+            preparedSelectionHTML = sanitized
+            return sanitized
         }
 
         if selectedPayload.rtf != nil {
             let attributed = RichTextConverter.attributedString(from: selectedPayload)
             let html = RichTextConverter.html(from: attributed)?.trimmingCharacters(in: .whitespacesAndNewlines)
             guard let html, !html.isEmpty else { return nil }
-            return RichTextHTMLSanitizer.sanitize(html)
+            let sanitized = RichTextHTMLSanitizer.sanitize(html)
+            preparedSelectionHTML = sanitized
+            return sanitized
         }
 
         return nil
     }
 
-    private func runSecondaryAction(at index: Int) {
+	    private func runSecondaryAction(at index: Int) {
         guard index >= 0 && index < translationService.customActions.count else {
             return
         }
@@ -631,8 +647,41 @@ struct TranslationPopupView: View {
             if isSecondaryLoading, secondaryRunningActionId == action.id {
                 return
             }
-	        runAction(action, target: .secondary, text: normalized)
+		    runAction(action, target: .secondary, text: normalized)
 	    }
+
+    private func outputPayload(for target: OutputTarget) -> RichTextPayload {
+        switch target {
+        case .primary:
+            if let cached = primaryOutputPayloadCache {
+                return cached
+            }
+            let payload = RichTextConverter.payload(fromMarkdown: primaryOutputText)
+            primaryOutputPayloadCache = payload
+            return payload
+        case .secondary:
+            if let cached = secondaryOutputPayloadCache {
+                return cached
+            }
+            let payload = RichTextConverter.payload(fromMarkdown: secondaryOutputText)
+            secondaryOutputPayloadCache = payload
+            return payload
+        }
+    }
+
+    private func copyOutput(target: OutputTarget) {
+        guard !isPreparingOutput else { return }
+        isPreparingOutput = true
+        defer { isPreparingOutput = false }
+        copyToClipboard(outputPayload(for: target))
+    }
+
+    private func replaceOutput(target: OutputTarget) {
+        guard !isPreparingOutput else { return }
+        isPreparingOutput = true
+        defer { isPreparingOutput = false }
+        replaceText(with: outputPayload(for: target))
+    }
 
     private func replaceText(with payload: RichTextPayload) {
         guard let target = selectedPayload?.replacementTarget,

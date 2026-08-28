@@ -402,9 +402,11 @@ enum RichTextPasteboard {
     }
 
     static func write(_ payload: RichTextPayload, to pasteboard: NSPasteboard) {
-        let attributed = RichTextConverter.attributedString(from: payload)
-        let rtf = payload.rtf ?? RichTextConverter.rtf(from: attributed)
-        let html = payload.html ?? RichTextConverter.html(from: attributed)
+        let attributed: NSAttributedString? = (payload.rtf == nil || payload.html == nil)
+            ? RichTextConverter.attributedString(from: payload)
+            : nil
+        let rtf = payload.rtf ?? attributed.flatMap(RichTextConverter.rtf(from:))
+        let html = payload.html ?? attributed.flatMap(RichTextConverter.html(from:))
 
         pasteboard.clearContents()
 
