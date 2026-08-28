@@ -5,6 +5,7 @@ import Foundation
 struct MarkdownTextView: NSViewRepresentable {
     let markdown: String
     let placeholder: String
+    let prepared: PreparedRichText?
 
     private var baseFont: NSFont {
         NSFont.preferredFont(forTextStyle: .body)
@@ -12,6 +13,12 @@ struct MarkdownTextView: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
+    }
+
+    init(markdown: String, placeholder: String, prepared: PreparedRichText? = nil) {
+        self.markdown = markdown
+        self.placeholder = placeholder
+        self.prepared = prepared
     }
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -44,11 +51,14 @@ struct MarkdownTextView: NSViewRepresentable {
         let isPlaceholder = markdown.isEmpty
         let content = isPlaceholder ? placeholder : markdown
 
-        if context.coordinator.lastContent == content, context.coordinator.lastWasPlaceholder == isPlaceholder {
+        if context.coordinator.lastContent == content,
+           context.coordinator.lastWasPlaceholder == isPlaceholder,
+           context.coordinator.lastPreparedPayload == prepared?.payload {
             return
         }
         context.coordinator.lastContent = content
         context.coordinator.lastWasPlaceholder = isPlaceholder
+        context.coordinator.lastPreparedPayload = prepared?.payload
 
         if isPlaceholder {
             textView.textStorage?.setAttributedString(
@@ -63,7 +73,9 @@ struct MarkdownTextView: NSViewRepresentable {
             return
         }
 
-        if #available(macOS 12.0, *) {
+        if let prepared {
+            textView.textStorage?.setAttributedString(prepared.attributed)
+        } else if #available(macOS 12.0, *) {
             textView.textStorage?.setAttributedString(RichTextConverter.attributedString(fromMarkdown: content))
         } else {
             textView.textStorage?.setAttributedString(NSAttributedString(string: RichTextConverter.normalizedMarkdown(content)))
@@ -73,5 +85,6 @@ struct MarkdownTextView: NSViewRepresentable {
     final class Coordinator {
         var lastContent: String?
         var lastWasPlaceholder: Bool = false
+        var lastPreparedPayload: RichTextPayload?
     }
 }

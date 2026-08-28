@@ -7,6 +7,10 @@ struct MainTranslationView: View {
     @State private var textChangeGeneration: Int = 0
     @State private var primaryOutputText: String = ""
     @State private var secondaryOutputText: String = ""
+    @State private var primaryOutputPayload: RichTextPayload?
+    @State private var secondaryOutputPayload: RichTextPayload?
+    @State private var primaryPreparedOutput: PreparedRichText?
+    @State private var secondaryPreparedOutput: PreparedRichText?
     @State private var showSettings: Bool = false
     @State private var showHelp: Bool = false
     @State private var processingTask: DispatchWorkItem?
@@ -71,6 +75,10 @@ struct MainTranslationView: View {
                             secondaryRunningActionId = nil
                             primaryOutputText = ""
                             secondaryOutputText = ""
+                            primaryOutputPayload = nil
+                            secondaryOutputPayload = nil
+                            primaryPreparedOutput = nil
+                            secondaryPreparedOutput = nil
                             
                             if !newValue.isEmpty {
                                 // Use a short delay for bulk edits such as a paste and
@@ -204,19 +212,26 @@ struct MainTranslationView: View {
         primaryTitle = "Translate"
         let requestId = UUID()
         primaryRequestId = requestId
+        primaryOutputPayload = nil
+        primaryPreparedOutput = nil
         isPrimaryLoading = true
 
-        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: translationService.preferredTargetLanguage)
+        let languageMode = translationService.translationLanguageMode(for: translationService.preferredTargetLanguage)
         primaryNetworkTask?.cancel()
-        primaryNetworkTask = translationService.translateText(text: text, targetLanguage: resolvedTargetLanguage, modelOverride: translationService.builtInTranslateModel) { result in
+        primaryNetworkTask = translationService.translateText(text: text, languageMode: languageMode, modelOverride: translationService.builtInTranslateModel) { result in
             guard primaryRequestId == requestId else { return }
             isPrimaryLoading = false
             switch result {
             case .success(let text):
-                primaryOutputText = RichTextConverter.normalizedMarkdown(text)
+                let prepared = RichTextConverter.prepare(markdown: text)
+                primaryOutputText = prepared.plain
+                primaryPreparedOutput = prepared
+                primaryOutputPayload = prepared.payload
             case .failure(let error):
                 if (error as? URLError)?.code == .cancelled { return }
                 primaryOutputText = ""
+                primaryOutputPayload = nil
+                primaryPreparedOutput = nil
                 translationService.errorMessage = error.localizedDescription
             }
         }
@@ -239,7 +254,7 @@ struct MainTranslationView: View {
                     .frame(width: 170)
                 }
 
-                Button(action: { copyTextToClipboard(primaryOutputText) }) {
+                Button(action: { copyTextToClipboard(primaryOutputText, payload: primaryOutputPayload) }) {
                     Image(systemName: "doc.on.doc")
                 }
                 .buttonStyle(.borderless)
@@ -271,7 +286,8 @@ struct MainTranslationView: View {
             } else {
                 MarkdownTextView(
                     markdown: primaryOutputText,
-                    placeholder: "Result will appear here..."
+                    placeholder: "Result will appear here...",
+                    prepared: primaryPreparedOutput
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(NSColor.controlBackgroundColor))
@@ -293,7 +309,7 @@ struct MainTranslationView: View {
                     .font(.headline)
                 Spacer()
 
-                Button(action: { copyTextToClipboard(secondaryOutputText) }) {
+                Button(action: { copyTextToClipboard(secondaryOutputText, payload: secondaryOutputPayload) }) {
                     Image(systemName: "doc.on.doc")
                 }
                 .buttonStyle(.borderless)
@@ -348,7 +364,8 @@ struct MainTranslationView: View {
             } else {
                 MarkdownTextView(
                     markdown: secondaryOutputText,
-                    placeholder: "Result will appear here..."
+                    placeholder: "Result will appear here...",
+                    prepared: secondaryPreparedOutput
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(NSColor.controlBackgroundColor))
@@ -374,15 +391,19 @@ struct MainTranslationView: View {
         sourceText = ""
         primaryOutputText = ""
         secondaryOutputText = ""
+        primaryOutputPayload = nil
+        secondaryOutputPayload = nil
+        primaryPreparedOutput = nil
+        secondaryPreparedOutput = nil
         isPrimaryLoading = false
         isSecondaryLoading = false
         secondaryRunningActionId = nil
     }
 
-    private func copyTextToClipboard(_ text: String) {
+    private func copyTextToClipboard(_ text: String, payload: RichTextPayload? = nil) {
         let pasteboard = NSPasteboard.general
-        let payload = RichTextConverter.payload(fromMarkdown: RichTextConverter.normalizedMarkdown(text))
-        RichTextPasteboard.write(payload, to: pasteboard)
+        let preparedPayload = payload ?? RichTextConverter.prepare(markdown: text).payload
+        RichTextPasteboard.write(preparedPayload, to: pasteboard)
     }
 
     private func replaceSourceText(with text: String) {
@@ -396,6 +417,10 @@ struct MainTranslationView: View {
             secondaryNetworkTask?.cancel()
             primaryOutputText = ""
             secondaryOutputText = ""
+            primaryOutputPayload = nil
+            secondaryOutputPayload = nil
+            primaryPreparedOutput = nil
+            secondaryPreparedOutput = nil
             isPrimaryLoading = false
             isSecondaryLoading = false
             secondaryRunningActionId = nil
@@ -465,10 +490,14 @@ struct MainTranslationView: View {
             case .primary:
                 primaryTitle = "Starred 1"
                 primaryOutputText = ""
+                primaryOutputPayload = nil
+                primaryPreparedOutput = nil
                 isPrimaryLoading = false
             case .secondary:
                 secondaryTitle = "Starred 2"
                 secondaryOutputText = ""
+                secondaryOutputPayload = nil
+                secondaryPreparedOutput = nil
                 isSecondaryLoading = false
             }
             return
@@ -477,8 +506,8 @@ struct MainTranslationView: View {
         let title = action.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Action" : action.title
         let prompt = action.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let resolvedTargetLanguage = translationService.resolveTargetLanguage(for: text, selectedLanguage: translationService.preferredTargetLanguage)
-        let resolvedPrompt = prompt.replacingOccurrences(of: "{{targetLanguage}}", with: resolvedTargetLanguage)
+        let targetLanguagePromptValue = translationService.targetLanguagePromptValue(for: translationService.preferredTargetLanguage)
+        let resolvedPrompt = prompt.replacingOccurrences(of: "{{targetLanguage}}", with: targetLanguagePromptValue)
         let emptyPromptMessage = "Configure the prompt and model for this action in Settings."
 
         switch target {
@@ -486,9 +515,14 @@ struct MainTranslationView: View {
             primaryTitle = title
             let requestId = UUID()
             primaryRequestId = requestId
+            primaryOutputPayload = nil
+            primaryPreparedOutput = nil
             if resolvedPrompt.isEmpty {
                 isPrimaryLoading = false
                 primaryOutputText = emptyPromptMessage
+                let prepared = RichTextConverter.prepare(markdown: emptyPromptMessage)
+                primaryPreparedOutput = prepared
+                primaryOutputPayload = prepared.payload
                 return
             }
             isPrimaryLoading = true
@@ -498,10 +532,15 @@ struct MainTranslationView: View {
                 isPrimaryLoading = false
                 switch result {
                 case .success(let text):
-                    primaryOutputText = RichTextConverter.normalizedMarkdown(text)
+                    let prepared = RichTextConverter.prepare(markdown: text)
+                    primaryOutputText = prepared.plain
+                    primaryPreparedOutput = prepared
+                    primaryOutputPayload = prepared.payload
                 case .failure(let error):
                     if (error as? URLError)?.code == .cancelled { return }
                     primaryOutputText = ""
+                    primaryOutputPayload = nil
+                    primaryPreparedOutput = nil
                     translationService.errorMessage = error.localizedDescription
                 }
             }
@@ -510,10 +549,15 @@ struct MainTranslationView: View {
             secondaryRunningActionId = action.id
             let requestId = UUID()
             secondaryRequestId = requestId
+            secondaryOutputPayload = nil
+            secondaryPreparedOutput = nil
             if resolvedPrompt.isEmpty {
                 isSecondaryLoading = false
                 secondaryRunningActionId = nil
                 secondaryOutputText = emptyPromptMessage
+                let prepared = RichTextConverter.prepare(markdown: emptyPromptMessage)
+                secondaryPreparedOutput = prepared
+                secondaryOutputPayload = prepared.payload
                 return
             }
             isSecondaryLoading = true
@@ -524,10 +568,15 @@ struct MainTranslationView: View {
                 secondaryRunningActionId = nil
                 switch result {
                 case .success(let text):
-                    secondaryOutputText = RichTextConverter.normalizedMarkdown(text)
+                    let prepared = RichTextConverter.prepare(markdown: text)
+                    secondaryOutputText = prepared.plain
+                    secondaryPreparedOutput = prepared
+                    secondaryOutputPayload = prepared.payload
                 case .failure(let error):
                     if (error as? URLError)?.code == .cancelled { return }
                     secondaryOutputText = ""
+                    secondaryOutputPayload = nil
+                    secondaryPreparedOutput = nil
                     translationService.errorMessage = error.localizedDescription
                 }
             }

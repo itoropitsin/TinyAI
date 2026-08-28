@@ -115,8 +115,6 @@ class KeyboardMonitor: ObservableObject {
     private var lastPopupHotkeyPressTime: Date?
     private let doublePressInterval: TimeInterval = 0.5
     private var pendingDoublePressPasteboardChangeCount: Int?
-    private var pendingDoublePressPayload: RichTextPayload?
-    private var pendingDoublePressCaptureWorkItem: DispatchWorkItem?
     private let pasteboardPollInterval: TimeInterval = 0.01
     private let pasteboardCopyTimeout: TimeInterval = 0.20
     private var eventTap: CFMachPort?
@@ -165,7 +163,6 @@ class KeyboardMonitor: ObservableObject {
     }
     
     deinit {
-        pendingDoublePressCaptureWorkItem?.cancel()
         stopMonitoring()
     }
 
@@ -224,9 +221,29 @@ class KeyboardMonitor: ObservableObject {
         freshClipboard: RichTextPayload?,
         accessibility: RichTextPayload?
     ) -> RichTextPayload? {
-        [pendingClipboard, freshClipboard, accessibility]
+        let candidates = [pendingClipboard, freshClipboard, accessibility]
             .compactMap { $0 }
-            .first { !$0.plain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .filter { !$0.plain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+        // A plain clipboard value is useful as a last resort, but it must not
+        // win over a rich value that arrived from another representation of
+        // the same selection (for example, Accessibility versus HTML/RTF).
+        guard var best = candidates.first else { return nil }
+        for candidate in candidates.dropFirst() where richPayloadScore(candidate) > richPayloadScore(best) {
+            best = candidate
+        }
+        return best
+    }
+
+    static func richPayloadScore(_ payload: RichTextPayload) -> Int {
+        var score = 0
+        if payload.html?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            score += 2
+        }
+        if payload.rtf != nil {
+            score += 1
+        }
+        return score
     }
 
     func applyPopupHotkeySettings(shortcut: KeyboardShortcut, pressMode: PopupHotkeyPressMode) -> String? {
@@ -347,14 +364,18 @@ class KeyboardMonitor: ObservableObject {
                     if let lastPress = lastPopupHotkeyPressTime,
                        now.timeIntervalSince(lastPress) < doublePressInterval {
                         let previousPasteboardChangeCount = pendingDoublePressPasteboardChangeCount
-                        let pendingPayload = pendingDoublePressPayload
+                        // Start the short grace period here, after the second
+                        // press has been observed. The first press may have
+                        // happened almost the full double-press interval ago.
+                        let naturalCopyStartedAt = now
+                        lastPopupHotkeyPressTime = nil
                         clearPendingDoublePressState()
                         if !isProcessing {
                             isProcessing = true
                             DispatchQueue.main.async { [weak self] in
                                 self?.handlePopupHotkeyTriggered(
                                     previousPasteboardChangeCount: previousPasteboardChangeCount,
-                                    pendingPayload: pendingPayload
+                                    naturalCopyStartedAt: naturalCopyStartedAt
                                 )
                             }
                         }
@@ -365,14 +386,6 @@ class KeyboardMonitor: ObservableObject {
                     let canReuseNaturalCopy = popupHotkey.keyCode == 8 && popupHotkey.modifiers == [.command]
                     if canReuseNaturalCopy {
                         pendingDoublePressPasteboardChangeCount = NSPasteboard.general.changeCount
-                        pendingDoublePressPayload = nil
-                        pendingDoublePressCaptureWorkItem?.cancel()
-                        let baseline = pendingDoublePressPasteboardChangeCount ?? 0
-                        let captureWorkItem = DispatchWorkItem { [weak self] in
-                            self?.captureDoublePressPasteboardIfAvailable(baseline: baseline)
-                        }
-                        pendingDoublePressCaptureWorkItem = captureWorkItem
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: captureWorkItem)
                     } else {
                         clearPendingDoublePressState()
                     }
@@ -386,67 +399,44 @@ class KeyboardMonitor: ObservableObject {
     
     private func handlePopupHotkeyTriggered(
         previousPasteboardChangeCount: Int? = nil,
-        pendingPayload: RichTextPayload? = nil
+        naturalCopyStartedAt: Date? = nil
     ) {
         // Ensure we are on the main thread
         guard Thread.isMainThread else {
             DispatchQueue.main.async { [weak self] in
                 self?.handlePopupHotkeyTriggered(
                     previousPasteboardChangeCount: previousPasteboardChangeCount,
-                    pendingPayload: pendingPayload
+                    naturalCopyStartedAt: naturalCopyStartedAt
                 )
             }
             return
         }
-        
-        // A double ⌘C normally already placed the selected text on the
-        // pasteboard. Prefer that fresh copy because it can contain HTML and
-        // RTF, which preserve formatting better than the accessibility string.
-        if var payload = Self.preferredPopupPayload(
-            pendingClipboard: pendingPayload,
-            freshClipboard: nil,
-            accessibility: nil
-        ) {
-            payload.replacementTarget = focusedTextReplacementTarget()
-            onPopupHotkey?(payload)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.isProcessing = false
-            }
-            return
-        }
-
         let pasteboard = NSPasteboard.general
-        var freshClipboardPayload: RichTextPayload?
-        if let previousPasteboardChangeCount,
-           pasteboard.changeCount != previousPasteboardChangeCount {
-            freshClipboardPayload = RichTextPasteboard.read(from: pasteboard)
-        }
-        if var payload = Self.preferredPopupPayload(
-            pendingClipboard: nil,
-            freshClipboard: freshClipboardPayload,
-            accessibility: nil
-        ) {
-            payload.replacementTarget = focusedTextReplacementTarget()
-            onPopupHotkey?(payload)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.isProcessing = false
-            }
+
+        // The first ⌘C is asynchronous in applications such as Slack. Do not
+        // fall back to Accessibility while that copy is still in flight: the
+        // Accessibility value is often plain text and would permanently lose
+        // the HTML/RTF needed for lists, links, and emphasis.
+        let replacementTarget = focusedTextReplacementTarget()
+        if let previousPasteboardChangeCount, let naturalCopyStartedAt {
+            waitForNaturalPasteboardCopy(
+                pasteboard: pasteboard,
+                baselineChangeCount: previousPasteboardChangeCount,
+                replacementTarget: replacementTarget,
+                startedAt: naturalCopyStartedAt,
+                fallbackPayload: nil
+            )
             return
         }
 
-        // Accessibility is the next-best source when no fresh copy is
-        // available. It is still useful for applications that do not expose
-        // a readable rich-text pasteboard representation.
+        // For a non-copy trigger, Accessibility remains the first fallback.
         if var payload = Self.preferredPopupPayload(
             pendingClipboard: nil,
             freshClipboard: nil,
             accessibility: getSelectedRichText()
         ) {
-            payload.replacementTarget = focusedTextReplacementTarget()
-            onPopupHotkey?(payload)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.isProcessing = false
-            }
+            payload.replacementTarget = replacementTarget
+            emitPopupPayload(payload)
             return
         }
 
@@ -454,7 +444,6 @@ class KeyboardMonitor: ObservableObject {
         // for a new pasteboard change without ever reusing stale contents.
         let snapshot = snapshotPasteboard(pasteboard)
         let initialChangeCount = pasteboard.changeCount
-        let replacementTarget = focusedTextReplacementTarget()
 
         // Copy selected text
         isSimulatingCopy = true
@@ -478,24 +467,87 @@ class KeyboardMonitor: ObservableObject {
 
     private func clearPendingDoublePressState() {
         pendingDoublePressPasteboardChangeCount = nil
-        pendingDoublePressPayload = nil
-        pendingDoublePressCaptureWorkItem?.cancel()
-        pendingDoublePressCaptureWorkItem = nil
     }
 
-    private func captureDoublePressPasteboardIfAvailable(baseline: Int) {
-        guard pendingDoublePressPasteboardChangeCount == baseline,
-              !isProcessing else { return }
+    private func waitForNaturalPasteboardCopy(
+        pasteboard: NSPasteboard,
+        baselineChangeCount: Int,
+        replacementTarget: TextReplacementTarget?,
+        startedAt: Date,
+        fallbackPayload: RichTextPayload?
+    ) {
+        let currentChangeCount = pasteboard.changeCount
+        var latestPayload = fallbackPayload
 
-        let pasteboard = NSPasteboard.general
-        guard pasteboard.changeCount != baseline,
-              var payload = RichTextPasteboard.read(from: pasteboard),
-              !payload.plain.isEmpty else {
+        if currentChangeCount != baselineChangeCount,
+           let payload = RichTextPasteboard.read(from: pasteboard),
+           !payload.plain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            latestPayload = payload
+
+            // A rich representation is complete enough to use immediately.
+            // If this is only plain text, keep polling until the deadline in
+            // case the source app publishes HTML/RTF shortly afterwards.
+            if Self.richPayloadScore(payload) > 0 {
+                var richPayload = payload
+                richPayload.replacementTarget = replacementTarget
+                emitPopupPayload(richPayload)
+                return
+            }
+        }
+
+        let elapsed = Date().timeIntervalSince(startedAt)
+        if elapsed >= pasteboardCopyTimeout {
+            let accessibilityPayload = getSelectedRichText()
+            if var payload = Self.preferredPopupPayload(
+                pendingClipboard: latestPayload,
+                freshClipboard: nil,
+                accessibility: accessibilityPayload
+            ) {
+                payload.replacementTarget = replacementTarget
+                emitPopupPayload(payload)
+                return
+            }
+
+            // The natural copy did not produce readable text. Use the same
+            // bounded synthetic-copy fallback as the single-press path, but
+            // never read the old clipboard value as if it were the selection.
+            let snapshot = snapshotPasteboard(pasteboard)
+            let initialChangeCount = pasteboard.changeCount
+            isSimulatingCopy = true
+            let source = CGEventSource(stateID: .hidSystemState)
+            let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true)
+            keyDown?.flags = .maskCommand
+            let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: false)
+            if let keyDown, let keyUp {
+                keyDown.post(tap: .cghidEventTap)
+                keyUp.post(tap: .cghidEventTap)
+            }
+            waitForPasteboardCopy(
+                pasteboard: pasteboard,
+                snapshot: snapshot,
+                initialChangeCount: initialChangeCount,
+                replacementTarget: replacementTarget,
+                startedAt: Date()
+            )
             return
         }
 
-        payload.replacementTarget = focusedTextReplacementTarget()
-        pendingDoublePressPayload = payload
+        DispatchQueue.main.asyncAfter(deadline: .now() + pasteboardPollInterval) { [weak self] in
+            self?.waitForNaturalPasteboardCopy(
+                pasteboard: pasteboard,
+                baselineChangeCount: baselineChangeCount,
+                replacementTarget: replacementTarget,
+                startedAt: startedAt,
+                fallbackPayload: latestPayload
+            )
+        }
+    }
+
+    private func emitPopupPayload(_ payload: RichTextPayload) {
+        onPopupHotkey?(payload)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.isProcessing = false
+        }
     }
 
     private func waitForPasteboardCopy(

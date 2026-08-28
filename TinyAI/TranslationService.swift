@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import NaturalLanguage
 
 enum LLMProvider: String, CaseIterable, Identifiable, Codable {
     case openAI = "openai"
@@ -117,6 +116,11 @@ struct CustomAction: Codable, Identifiable, Equatable {
             model = TranslationService.defaultModel
         }
     }
+}
+
+enum TranslationLanguageMode: Equatable {
+    case fixed(String)
+    case automatic(main: String, additional: String)
 }
 
 class TranslationService: ObservableObject {
@@ -451,35 +455,23 @@ class TranslationService: ObservableObject {
         normalizeActionStyleContextActionKeys()
     }
 
-    func resolveTargetLanguage(for text: String, selectedLanguage: String) -> String {
+    func translationLanguageMode(for selectedLanguage: String) -> TranslationLanguageMode {
         guard selectedLanguage == Self.languageAutoSelection else {
-            return selectedLanguage
+            return .fixed(selectedLanguage)
         }
+        return .automatic(
+            main: autoTranslateMainLanguage,
+            additional: autoTranslateAdditionalLanguage
+        )
+    }
 
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return autoTranslateMainLanguage
+    func targetLanguagePromptValue(for selectedLanguage: String) -> String {
+        switch translationLanguageMode(for: selectedLanguage) {
+        case .fixed(let language):
+            return language
+        case .automatic(let main, let additional):
+            return "\(additional) when the source is predominantly \(main); otherwise \(main) (choose from the complete human-readable prose; preserve URLs, domains, paths, code, identifiers, product names, and markup without letting them decide the language alone)"
         }
-
-        let main = autoTranslateMainLanguage
-        let additional = autoTranslateAdditionalLanguage
-        guard main != additional else {
-            return main
-        }
-
-        guard let detected = detectDominantLanguage(for: trimmed) else {
-            return main
-        }
-
-        if matches(displayName: main, detectedLanguage: detected) {
-            return additional
-        }
-
-        if matches(displayName: additional, detectedLanguage: detected) {
-            return main
-        }
-
-        return main
     }
 
     private func normalizedSupportedLanguage(_ value: String, fallback: String) -> String {
@@ -496,73 +488,6 @@ class TranslationService: ObservableObject {
             return trimmed
         }
         return normalizedSupportedLanguage(trimmed, fallback: "English")
-    }
-
-    private func detectDominantLanguage(for text: String) -> NLLanguage? {
-        let recognizer = NLLanguageRecognizer()
-        recognizer.processString(text)
-        if let language = recognizer.dominantLanguage, language != .undetermined {
-            return language
-        }
-
-        let hasCyrillic = text.unicodeScalars.contains { scalar in
-            (0x0400...0x04FF).contains(Int(scalar.value)) || (0x0500...0x052F).contains(Int(scalar.value))
-        }
-        let hasLatin = text.unicodeScalars.contains { scalar in
-            (0x0041...0x005A).contains(Int(scalar.value)) || (0x0061...0x007A).contains(Int(scalar.value))
-        }
-
-        if hasCyrillic && !hasLatin {
-            return .russian
-        }
-        if hasLatin && !hasCyrillic {
-            return .english
-        }
-
-        return nil
-    }
-
-    private func matches(displayName: String, detectedLanguage: NLLanguage) -> Bool {
-        switch displayName {
-        case "English":
-            return detectedLanguage == .english
-        case "Russian":
-            return detectedLanguage == .russian
-        case "Spanish":
-            return detectedLanguage == .spanish
-        case "French":
-            return detectedLanguage == .french
-        case "German":
-            return detectedLanguage == .german
-        case "Italian":
-            return detectedLanguage == .italian
-        case "Portuguese":
-            return detectedLanguage == .portuguese
-        case "Chinese":
-            return detectedLanguage == .simplifiedChinese || detectedLanguage == .traditionalChinese
-        case "Japanese":
-            return detectedLanguage == .japanese
-        case "Korean":
-            return detectedLanguage == .korean
-        case "Arabic":
-            return detectedLanguage == .arabic
-        case "Dutch":
-            return detectedLanguage == .dutch
-        case "Polish":
-            return detectedLanguage == .polish
-        case "Turkish":
-            return detectedLanguage == .turkish
-        case "Swedish":
-            return detectedLanguage == .swedish
-        case "Norwegian":
-            return detectedLanguage == .norwegian
-        case "Danish":
-            return detectedLanguage == .danish
-        case "Finnish":
-            return detectedLanguage == .finnish
-        default:
-            return false
-        }
     }
 
     private func normalizeCustomActions(_ actions: [CustomAction]) -> [CustomAction] {
@@ -1202,10 +1127,24 @@ Rules:
         }
     }
 
-    private func translateSystemPrompt(targetLanguage: String, actionKey: String?) -> String {
+    static func translationDirectionInstruction(for mode: TranslationLanguageMode) -> String {
+        switch mode {
+        case .fixed(let targetLanguage):
+            return "Translate from the detected source language to \(targetLanguage) naturally and clearly."
+        case .automatic(let main, let additional):
+            return """
+            Choose the translation direction from these two configured languages:
+            - Main language: \(main)
+            - Additional language: \(additional)
+            Determine the dominant language from the human-readable prose in the complete input. If the prose is predominantly \(main), translate to \(additional). If it is predominantly \(additional), translate to \(main). If it is another language or the result is uncertain, translate to \(main). URLs, domains, paths, code, identifiers, product names, and markup are content to preserve; they must not decide the language by themselves. If the input contains no human-readable prose, return it unchanged.
+            """
+        }
+    }
+
+    private func translateSystemPrompt(languageMode: TranslationLanguageMode, actionKey: String?) -> String {
         var prompt = """
 You are a professional translator. Your priority is to preserve meaning and intent.
-Translate from Auto-detect to \(targetLanguage) naturally and clearly.
+\(Self.translationDirectionInstruction(for: languageMode))
 
 Rules:
 - Preserve meaning over literal wording.
@@ -1229,14 +1168,19 @@ Output only the translation.
         return prompt
     }
 
-    private func translateHTMLSystemPrompt(targetLanguage: String, actionKey: String?) -> String {
+    private func translateSystemPrompt(targetLanguage: String, actionKey: String?) -> String {
+        translateSystemPrompt(languageMode: .fixed(targetLanguage), actionKey: actionKey)
+    }
+
+    private func translateHTMLSystemPrompt(languageMode: TranslationLanguageMode, actionKey: String?, strictStructure: Bool = false) -> String {
         var prompt = """
 You are a professional translator.
 
 Input is HTML.
-Translate from Auto-detect to \(targetLanguage) naturally and clearly.
+\(Self.translationDirectionInstruction(for: languageMode))
 
 Rules:
+- For automatic direction, inspect text nodes for the dominant language; do not infer it from tags, attributes, URLs, or other markup.
 - Preserve the HTML structure exactly: keep tags, attributes, links, code tags, lists, and nesting.
 - Translate only the human-readable text content (text nodes).
 - Preserve emphasis/formatting exactly as represented in HTML (e.g. keep <b>/<strong> tags and any inline font-weight styles; do not drop them).
@@ -1245,6 +1189,9 @@ Rules:
 - Output must be valid HTML and must start with '<' (no Markdown, no code fences, no plain text).
 - If you cannot comply with the rules, output the original input HTML unchanged.
 """
+        if strictStructure {
+            prompt += "\n\nThis is a structure-correction retry. Return the same number and order of paragraphs, blank paragraphs, lists and nested list levels, links (with identical destinations), code blocks/spans, and bold/italic/monospace spans as the input. Translate text only."
+        }
         let style = translationStyleContext.trimmingCharacters(in: .whitespacesAndNewlines)
         if !style.isEmpty {
             prompt += "\n\nTranslation style context:\n\(style)"
@@ -1255,14 +1202,19 @@ Rules:
         return prompt
     }
 
-    private func translateHTMLToMarkdownSystemPrompt(targetLanguage: String, actionKey: String?) -> String {
+    private func translateHTMLSystemPrompt(targetLanguage: String, actionKey: String?) -> String {
+        translateHTMLSystemPrompt(languageMode: .fixed(targetLanguage), actionKey: actionKey)
+    }
+
+    private func translateHTMLToMarkdownSystemPrompt(languageMode: TranslationLanguageMode, actionKey: String?) -> String {
         var prompt = """
 You are a professional translator.
 
 Input is HTML.
-Translate from Auto-detect to \(targetLanguage) naturally and clearly.
+\(Self.translationDirectionInstruction(for: languageMode))
 
 Rules:
+- For automatic direction, inspect text nodes for the dominant language; do not infer it from tags, attributes, URLs, or other markup.
 - Use the HTML input only as formatting guidance.
 - Preserve lists, numbering, headings, and emphasis from the input (bold/italic/links) using Markdown.
 - Outside code blocks and inline code, use the standard Markdown marker "- " for unordered lists; never use a private-use font glyph or unknown placeholder as a list marker.
@@ -1279,6 +1231,10 @@ Rules:
             prompt += "\n\nAdditional style context:\n\(actionStyle)"
         }
         return prompt
+    }
+
+    private func translateHTMLToMarkdownSystemPrompt(targetLanguage: String, actionKey: String?) -> String {
+        translateHTMLToMarkdownSystemPrompt(languageMode: .fixed(targetLanguage), actionKey: actionKey)
     }
 
     private func grammarSystemPrompt() -> String {
@@ -1317,8 +1273,43 @@ Rules:
 """
     }
 
+    private func buildHTMLTranslateRequestBody(html: String, languageMode: TranslationLanguageMode, modelName: String, actionKey: String?, strictStructure: Bool = false) -> [String: Any] {
+        let systemPrompt = translateHTMLSystemPrompt(languageMode: languageMode, actionKey: actionKey, strictStructure: strictStructure)
+
+        var requestBody: [String: Any] = [
+            "model": modelName,
+            "messages": [
+                [
+                    "role": "system",
+                    "content": systemPrompt
+                ],
+                [
+                    "role": "user",
+                    "content": html
+                ]
+            ],
+            "max_completion_tokens": 1500
+        ]
+
+        if modelName == OpenAIModel.gpt52.rawValue {
+            requestBody["temperature"] = 0.2
+        }
+
+        return requestBody
+    }
+
     private func buildHTMLTranslateRequestBody(html: String, targetLanguage: String, modelName: String, actionKey: String?) -> [String: Any] {
-        let systemPrompt = translateHTMLSystemPrompt(targetLanguage: targetLanguage, actionKey: actionKey)
+        buildHTMLTranslateRequestBody(
+            html: html,
+            languageMode: .fixed(targetLanguage),
+            modelName: modelName,
+            actionKey: actionKey,
+            strictStructure: false
+        )
+    }
+
+    private func buildHTMLToMarkdownTranslateRequestBody(html: String, languageMode: TranslationLanguageMode, modelName: String, actionKey: String?) -> [String: Any] {
+        let systemPrompt = translateHTMLToMarkdownSystemPrompt(languageMode: languageMode, actionKey: actionKey)
 
         var requestBody: [String: Any] = [
             "model": modelName,
@@ -1343,28 +1334,12 @@ Rules:
     }
 
     private func buildHTMLToMarkdownTranslateRequestBody(html: String, targetLanguage: String, modelName: String, actionKey: String?) -> [String: Any] {
-        let systemPrompt = translateHTMLToMarkdownSystemPrompt(targetLanguage: targetLanguage, actionKey: actionKey)
-
-        var requestBody: [String: Any] = [
-            "model": modelName,
-            "messages": [
-                [
-                    "role": "system",
-                    "content": systemPrompt
-                ],
-                [
-                    "role": "user",
-                    "content": html
-                ]
-            ],
-            "max_completion_tokens": 1500
-        ]
-
-        if modelName == OpenAIModel.gpt52.rawValue {
-            requestBody["temperature"] = 0.2
-        }
-
-        return requestBody
+        buildHTMLToMarkdownTranslateRequestBody(
+            html: html,
+            languageMode: .fixed(targetLanguage),
+            modelName: modelName,
+            actionKey: actionKey
+        )
     }
 
     private func buildCustomActionRequestBody(text: String, prompt: String, modelName: String) -> [String: Any] {
@@ -1433,8 +1408,8 @@ Rules:
         return requestBody
     }
 
-    private func buildRequestBody(text: String, targetLanguage: String, modelName: String, actionKey: String?) -> [String: Any] {
-        let systemPrompt = translateSystemPrompt(targetLanguage: targetLanguage, actionKey: actionKey)
+    private func buildRequestBody(text: String, languageMode: TranslationLanguageMode, modelName: String, actionKey: String?) -> [String: Any] {
+        let systemPrompt = translateSystemPrompt(languageMode: languageMode, actionKey: actionKey)
 
         var requestBody: [String: Any] = [
             "model": modelName,
@@ -1456,6 +1431,15 @@ Rules:
         }
 
         return requestBody
+    }
+
+    private func buildRequestBody(text: String, targetLanguage: String, modelName: String, actionKey: String?) -> [String: Any] {
+        buildRequestBody(
+            text: text,
+            languageMode: .fixed(targetLanguage),
+            modelName: modelName,
+            actionKey: actionKey
+        )
     }
 
     private func buildGrammarFixRequestBody(text: String, modelName: String) -> [String: Any] {
@@ -1811,7 +1795,7 @@ Rules:
         translate(text: text, targetLanguage: targetLanguage, modelOverride: nil, completion: completion)
     }
 
-		    func translate(text: String, targetLanguage: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) {
+	    func translate(text: String, targetLanguage: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             completion(.failure(TranslationError.emptyText))
             return
@@ -1820,8 +1804,9 @@ Rules:
         isTranslating = true
         errorMessage = nil
 
-        let modelToUse = modelOverride ?? builtInTranslateModel
-		        translateText(text: text, targetLanguage: targetLanguage, modelOverride: modelToUse) { [weak self] result in
+	        let modelToUse = modelOverride ?? builtInTranslateModel
+	        let languageMode = translationLanguageMode(for: targetLanguage)
+		        translateText(text: text, languageMode: languageMode, modelOverride: modelToUse) { [weak self] result in
 		            self?.isTranslating = false
 		            switch result {
 	            case .success:
@@ -1842,7 +1827,17 @@ Rules:
 		    }
 
     @discardableResult
-	    func translateText(text: String, targetLanguage: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+    func translateText(text: String, targetLanguage: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+        translateText(
+            text: text,
+            languageMode: translationLanguageMode(for: targetLanguage),
+            modelOverride: modelOverride,
+            completion: completion
+        )
+    }
+
+    @discardableResult
+    func translateText(text: String, languageMode: TranslationLanguageMode, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
 	        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
 	            completion(.failure(TranslationError.emptyText))
 	            return nil
@@ -1853,14 +1848,14 @@ Rules:
 	        guard guardModelAvailable(modelToUse, completion: completion) else { return nil }
 	        switch modelToUse.provider {
 	        case .openAI:
-	            let requestBody = buildRequestBody(text: text, targetLanguage: targetLanguage, modelName: modelToUse.name, actionKey: actionKey)
+	            let requestBody = buildRequestBody(text: text, languageMode: languageMode, modelName: modelToUse.name, actionKey: actionKey)
 	            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
 	        case .gemini:
             return performGeminiGenerateContent(
-                apiKey: geminiAPIKey,
-                modelName: modelToUse.name,
-                systemPrompt: translateSystemPrompt(targetLanguage: targetLanguage, actionKey: actionKey),
-                userText: text,
+	                apiKey: geminiAPIKey,
+	                modelName: modelToUse.name,
+	                systemPrompt: translateSystemPrompt(languageMode: languageMode, actionKey: actionKey),
+	                userText: text,
                 maxOutputTokens: 1000,
                 temperature: 0.3,
                 completion: completion
@@ -1869,7 +1864,17 @@ Rules:
     }
 
     @discardableResult
-	    func translateHTML(html: String, targetLanguage: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+    func translateHTML(html: String, targetLanguage: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+        translateHTML(
+            html: html,
+            languageMode: translationLanguageMode(for: targetLanguage),
+            modelOverride: modelOverride,
+            completion: completion
+        )
+    }
+
+    @discardableResult
+    func translateHTML(html: String, languageMode: TranslationLanguageMode, modelOverride: LLMModel?, strictStructure: Bool = false, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
 	        guard !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
 	            completion(.failure(TranslationError.emptyText))
 	            return nil
@@ -1880,14 +1885,14 @@ Rules:
 	        guard guardModelAvailable(modelToUse, completion: completion) else { return nil }
 	        switch modelToUse.provider {
 	        case .openAI:
-	            let requestBody = buildHTMLTranslateRequestBody(html: html, targetLanguage: targetLanguage, modelName: modelToUse.name, actionKey: actionKey)
+	            let requestBody = buildHTMLTranslateRequestBody(html: html, languageMode: languageMode, modelName: modelToUse.name, actionKey: actionKey, strictStructure: strictStructure)
 	            return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
 	        case .gemini:
             return performGeminiGenerateContent(
-                apiKey: geminiAPIKey,
-                modelName: modelToUse.name,
-                systemPrompt: translateHTMLSystemPrompt(targetLanguage: targetLanguage, actionKey: actionKey),
-                userText: html,
+	                apiKey: geminiAPIKey,
+	                modelName: modelToUse.name,
+	                systemPrompt: translateHTMLSystemPrompt(languageMode: languageMode, actionKey: actionKey, strictStructure: strictStructure),
+	                userText: html,
                 maxOutputTokens: 1500,
                 temperature: 0.2,
                 completion: completion
@@ -1897,6 +1902,16 @@ Rules:
 
     @discardableResult
     func translateHTMLToMarkdown(html: String, targetLanguage: String, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
+        translateHTMLToMarkdown(
+            html: html,
+            languageMode: translationLanguageMode(for: targetLanguage),
+            modelOverride: modelOverride,
+            completion: completion
+        )
+    }
+
+    @discardableResult
+    func translateHTMLToMarkdown(html: String, languageMode: TranslationLanguageMode, modelOverride: LLMModel?, completion: @escaping (Result<String, Error>) -> Void) -> URLSessionDataTask? {
         guard !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             completion(.failure(TranslationError.emptyText))
             return nil
@@ -1907,13 +1922,13 @@ Rules:
         guard guardModelAvailable(modelToUse, completion: completion) else { return nil }
         switch modelToUse.provider {
         case .openAI:
-            let requestBody = buildHTMLToMarkdownTranslateRequestBody(html: html, targetLanguage: targetLanguage, modelName: modelToUse.name, actionKey: actionKey)
+            let requestBody = buildHTMLToMarkdownTranslateRequestBody(html: html, languageMode: languageMode, modelName: modelToUse.name, actionKey: actionKey)
             return performOpenAIChatCompletion(apiKey: apiKey, requestBody: requestBody, completion: completion)
         case .gemini:
             return performGeminiGenerateContent(
                 apiKey: geminiAPIKey,
                 modelName: modelToUse.name,
-                systemPrompt: translateHTMLToMarkdownSystemPrompt(targetLanguage: targetLanguage, actionKey: actionKey),
+                systemPrompt: translateHTMLToMarkdownSystemPrompt(languageMode: languageMode, actionKey: actionKey),
                 userText: html,
                 maxOutputTokens: 1500,
                 temperature: 0.2,
@@ -1965,8 +1980,11 @@ Rules:
         let formattingPrompt = """
         \(trimmedPrompt)
 
-        Formatting requirements:
-        - Preserve line breaks, paragraph boundaries, and list structure when relevant.
+        Output requirements:
+        - Follow the task prompt when it requests a new structure, such as a summary,
+          reordered sections, or a different number of paragraphs.
+        - If the task does not request a structural change, preserve line breaks,
+          paragraph boundaries, and list structure.
         - Outside code blocks and inline code, use the standard Markdown marker "- " for unordered lists; never use a private-use font glyph or unknown placeholder as a list marker.
         - Preserve code blocks and code spans exactly, including private-use characters that are part of code.
         """
@@ -2058,17 +2076,20 @@ Rules:
         let htmlPrompt = """
 System requirements (highest priority):
 - Input is HTML and output must be valid HTML that starts with '<'.
-- Preserve the HTML structure and formatting exactly (tags, attributes, links, lists, nesting).
-- Preserve emphasis/formatting exactly as represented in HTML (keep <b>/<strong> and inline font-weight; do not drop them).
-- If the task prompt asks for Markdown/plain text, ignore that part and still output HTML.
-- If you cannot comply with the rules, output the original input HTML unchanged.
+- The task prompt is authoritative about the requested content and structure. It may
+  intentionally add, remove, reorder, summarize, or otherwise restructure content.
+- For content that the task keeps, preserve semantic formatting and links unless the
+  task explicitly asks to change them. Source-app fonts, sizes and colours are not
+  meaningful and should not be copied.
+- If the task does not ask for a structural change, keep the existing paragraphs,
+  lists, links, code and emphasis.
 
 Task:
 \(trimmedPrompt)
 
 Rules:
-- Edit/transform only the human-readable text content (text nodes) as needed by the task.
-- Preserve whitespace and line breaks as represented in the HTML.
+- Change the human-readable content and HTML structure as required by the task.
+- Keep the result parseable HTML. Do not put Markdown or a code fence around it.
 """
         let styledPrompt = appendActionStyleContext(to: htmlPrompt, actionKey: actionKey)
 
