@@ -20,8 +20,8 @@
 		2C2167822F123456004A2529 /* MarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167812F123456004A2529 /* MarkdownTextView.swift */; };
 		E9DD64F3420B4975E1756459 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9B71849304D48C2CCAC60D0 /* HelpView.swift */; };
 		A1B2C3D4E5F60718293A4B5C /* TinyAITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2167382EEC73E1004A2529 /* TinyAITests.swift */; };
-		A1B2C3D4E5F60718293A4B5D /* TinyAIUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21673A2EEC7399004A2529 /* TinyAIUITests.swift */; };
-		A1B2C3D4E5F60718293A4B5E /* TinyAIUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21673B2EEC7399004A2529 /* TinyAIUITestsLaunchTests.swift */; };
+		A1B2C3D4E5F60718293A4B5D /* TinyAIUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21673A2EEC73E1004A2529 /* TinyAIUITests.swift */; };
+		A1B2C3D4E5F60718293A4B5E /* TinyAIUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C21673B2EEC73E1004A2529 /* TinyAIUITestsLaunchTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */

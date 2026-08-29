@@ -220,9 +220,15 @@ enum RichTextListMarkers {
                 digitOrLetterCount += 1
             }
 
-            if cursor < line.endIndex, line[cursor] == "." || line[cursor] == ")" {
-                cursor = line.index(after: cursor)
+            // A prose line such as "As discussed ..." starts with letters
+            // followed by whitespace, but it is not an ordered-list item.
+            // Require the punctuation used by list markers before accepting
+            // numeric or alphabetic ordered items (for example, "1. item"
+            // or "a) item").
+            guard cursor < line.endIndex, line[cursor] == "." || line[cursor] == ")" else {
+                return nil
             }
+            cursor = line.index(after: cursor)
             guard cursor < line.endIndex, isHorizontalWhitespace(line[cursor]) else {
                 return nil
             }

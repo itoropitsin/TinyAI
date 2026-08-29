@@ -36,6 +36,28 @@ struct TinyAITests {
         #expect(RichTextConverter.normalizedMarkdown("\(marker)\nnext") == "\(marker)\nnext")
     }
 
+    @Test func proseStartingWithLetters_isNotParsedAsAnOrderedList() {
+        let source = "As we discussed on the call with security - let's update the columns naming in RBAC:\n- System Admins\n- Role Admin"
+        let prepared = RichTextConverter.prepare(markdown: source)
+
+        #expect(prepared.plain == "As we discussed on the call with security - let's update the columns naming in RBAC:\n• System Admins\n• Role Admin")
+        #expect(RichTextConverter.structureSignature(of: prepared.attributed).blocks == [
+            "paragraph",
+            "list:unordered:1:item",
+            "list:unordered:1:item"
+        ])
+
+        let firstParagraphRange = (prepared.attributed.string as NSString).paragraphRange(
+            for: NSRange(location: 0, length: 0)
+        )
+        let firstParagraphStyle = prepared.attributed.attribute(
+            .paragraphStyle,
+            at: firstParagraphRange.location,
+            effectiveRange: nil
+        ) as? NSParagraphStyle
+        #expect(firstParagraphStyle?.textLists.isEmpty != false)
+    }
+
     @Test func htmlSanitizer_removesSlackMarkers_onlyInListPositions() {
         let marker = RichTextListMarkers.slackPrivateUseBullet
         let html = "<ul><li>\(marker) <strong>First</strong></li><li><span><b>\(marker)</b></span> Second</li></ul>"
